@@ -8,19 +8,19 @@ Migrated from `reviewer-findings.md` on 2026-08-04.
 
 1. **Silent fallback (patterns.md violation)** — `_extract_error_line` Priority 4 returns the first non-empty line with no indicator that it's a fallback. The "no silent fallback" rule applies here: callers cannot distinguish a confident extraction from a guess. Consider adding a flag or logging when falling back to the generic first line.
 
-2. **No handling of binary/garbled input** — `raw_text.strip()` and `splitlines()` work on any string, but if the input contains embedded NUL bytes or non-UTF-8 sequences, behavior is undefined. `parse_log` should validate encoding or document the assumption.
+2. ~~**No handling of binary/garbled input**~~ — Fixed: Added NUL byte validation in `parse_log` and documented encoding assumption in docstring. Tests added in `test_parser.py`.
 
-3. **Regex does not cover .NET-style `FaultException`** — Priority 1 regex `\b\w+(Exception|Error)\b` matches `SomeException` but `FaultException<Detail>` (common in SOAP/WCF logs tied to `api-integration-error` category) contains angle brackets that break `\b` word boundaries, so it will not match.
+3. ~~**Regex does not cover .NET-style `FaultException`**~~ — Closed: regex already matches. `\w+` backtracks so `(Exception|Error)` matches `Exception`, and `\b` matches before `<` (word→non-word boundary). Test added: `test_parse_dotnet_fault_exception`.
 
 ---
 
 ## src/classifier.py
 
-4. **Docstring claims `OPENCODE_API_KEY` is used; code reads `OPENCODE_API_KEY`** — The docstring at line 33 says "If None, uses OPENCODE_API_KEY" which is ambiguous (could mean "uses the key named OPENCODE_API_KEY" or "uses the client named OPENCODE_API_KEY"). Should state: "reads the `OPENCODE_API_KEY` environment variable."
+4. ~~**Docstring claims `OPENCODE_API_KEY` is used; code reads `OPENCODE_API_KEY`** — The docstring at line 33 says "If None, uses OPENCODE_API_KEY" which is ambiguous (could mean "uses the key named OPENCODE_API_KEY" or "uses the client named OPENCODE_API_KEY"). Should state: "reads the `OPENCODE_API_KEY` environment variable."~~ **FIXED**
 
-5. **`_apply_confidence_rule` mutates in-place and returns** — The function modifies `result` directly and also returns it. While not a bug, it's inconsistent with a functional style and makes the data flow harder to reason about. Minor style issue.
+5. ~~**`_apply_confidence_rule` mutates in-place and returns** — The function modifies `result` directly and also returns it. While not a bug, it's inconsistent with a functional style and makes the data flow harder to reason about. Minor style issue.~~ **FIXED**
 
-6. **`base_url` points to `opencode.ai/zen/v1`** — This is a non-standard endpoint. No documentation or env-var override exists. If the endpoint changes, classifier breaks.
+6. ~~**`base_url` points to `opencode.ai/zen/v1`** — This is a non-standard endpoint. No documentation or env-var override exists. If the endpoint changes, classifier breaks.~~ **FIXED**
 
 ---
 

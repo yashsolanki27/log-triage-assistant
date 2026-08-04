@@ -24,6 +24,7 @@ VALID_CATEGORIES = [
 
 CONFIDENCE_THRESHOLD = 70
 MODEL_NAME = os.environ.get("LLM_MODEL_NAME", "deepseek-v4-flash-free")
+BASE_URL = os.environ.get("OPENCODE_BASE_URL", "https://opencode.ai/zen/v1")
 
 
 def classify_log(parsed_log: dict, client=None) -> dict:
@@ -31,7 +32,7 @@ def classify_log(parsed_log: dict, client=None) -> dict:
 
     Args:
         parsed_log: Dict from parser.parse_log() with keys raw_text, extracted_error_line.
-        client: Optional OpenAI client for testing. If None, uses OPENCODE_API_KEY.
+        client: Optional OpenAI client for testing. If None, reads the OPENCODE_API_KEY environment variable.
 
     Returns:
         Dict with keys: category, root_cause_summary, confidence,
@@ -72,7 +73,7 @@ def _call_llm(prompt: str, client=None) -> str:
         if not api_key:
             raise RuntimeError("OPENCODE_API_KEY environment variable not set")
         client = openai.OpenAI(
-            base_url="https://opencode.ai/zen/v1",
+            base_url=BASE_URL,
             api_key=api_key,
         )
 
@@ -115,12 +116,15 @@ def _parse_response(raw_response: str) -> dict:
 def _apply_confidence_rule(result: dict) -> dict:
     """Force unclassified if confidence is below threshold."""
     if result["confidence"] < CONFIDENCE_THRESHOLD:
-        result["unclassified_reason"] = (
-            f"Confidence {result['confidence']}% is below {CONFIDENCE_THRESHOLD}% threshold. "
-            + (result.get("unclassified_reason") or "Low confidence in classification.")
-        )
-        result["category"] = "unclassified"
-    return result
+        return {
+            **result,
+            "category": "unclassified",
+            "unclassified_reason": (
+                f"Confidence {result['confidence']}% is below {CONFIDENCE_THRESHOLD}% threshold. "
+                + (result.get("unclassified_reason") or "Low confidence in classification.")
+            ),
+        }
+    return {**result}
 
 
 def _validate_output(result: dict) -> None:

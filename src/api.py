@@ -7,7 +7,7 @@ Patterns: one function, one responsibility. No silent fallback.
 """
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from src.classifier import classify_log
 from src.parser import parse_log
@@ -29,6 +29,16 @@ class TriageResponse(BaseModel):
     confidence: int
     suggested_action: str
     unclassified_reason: str | None
+
+    @model_validator(mode="after")
+    def validate_unclassified_reason(self) -> "TriageResponse":
+        if self.category == "unclassified":
+            if not self.unclassified_reason or not self.unclassified_reason.strip():
+                raise ValueError("unclassified category requires a non-empty unclassified_reason")
+        else:
+            if self.unclassified_reason is not None:
+                raise ValueError("non-unclassified category must have unclassified_reason=None")
+        return self
 
 
 @app.post("/triage", response_model=TriageResponse)
