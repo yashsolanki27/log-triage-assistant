@@ -39,3 +39,9 @@ Migrated from `reviewer-findings.md` on 2026-08-04.
 10. **No integration test with real LLM** — All classifier tests mock the LLM. No test exercises the actual OpenAI endpoint, so prompt regressions or API changes won't be caught until production.
 
 11. **`_call_llm` uses `user` role for system-level prompt** — The prompt is a detailed system instruction but is sent as a `user` message. Best practice is to use `system` role for the prompt and `user` role for the log excerpt only.
+
+---
+
+## Future ideas
+
+- **Batch/multi-entry log support** — Deferred. Rationale: v1 architecture is single-entry by design, no real usage data yet to size the feature correctly. Revisit if real usage shows need for correlation across entries.
