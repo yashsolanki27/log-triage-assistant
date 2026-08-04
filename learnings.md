@@ -1,0 +1,5 @@
+- Test 2026-08-04: "unexpected behavior noticed" generic log → correctly unclassified (10% conf, below threshold). WORKED.
+- Test 2026-08-04: NextTacheCalculationException, order calc fail → next-tache-error (92% conf). WORKED.
+- Test 2026-08-04: CRM-OSS-Bridge state transition blocked, COLLAB_WAIT stuck → state-transition-block (85% conf). WORKED.
+- Test 2026-08-04: repeat of same CRM-OSS-Bridge log → same output (85% conf), consistent. WORKED.
+- Test 2026-08-04: DSLAM node assignment fail, provisioning FATAL → provisioning-fault (95% conf). WORKED.
