@@ -15,11 +15,14 @@ and suggests likely root causes — automating manual RCA triage work.
 
 ## Routing table
 
-| Situation                                      | Open this file |
-| ---------------------------------------------- | -------------- |
-| (to be filled in as docs are created — Part 1) |                |
+| Situation                          | Open this file         |
+| ---------------------------------- | ---------------------- |
+| touching classification categories | docs/business-logic.md |
+| adding endpoint/component          | docs/architecture.md   |
+| picking library/dependency         | docs/tech-stack.md     |
+| code style question                | docs/patterns.md       |
 
-##Memory rules
+## Memory rules
 
 - One task, one fresh chat. Never continue a long chat past its task. (Tip 8)
 - Never let the agent auto-compact context — start fresh instead. (Tip 8)
