@@ -23,6 +23,7 @@ VALID_CATEGORIES = [
 ]
 
 CONFIDENCE_THRESHOLD = 70
+MODEL_NAME = os.environ.get("LLM_MODEL_NAME", "deepseek-v4-flash-free")
 
 
 def classify_log(parsed_log: dict, client=None) -> dict:
@@ -76,7 +77,7 @@ def _call_llm(prompt: str, client=None) -> str:
         )
 
     message = client.chat.completions.create(
-        model="deepseek-v4-flash-free",
+        model=MODEL_NAME,
         max_tokens=512,
         messages=[{"role": "user", "content": prompt}],
     )
@@ -85,8 +86,15 @@ def _call_llm(prompt: str, client=None) -> str:
 
 def _parse_response(raw_response: str) -> dict:
     """Extract and validate JSON from the LLM response text."""
+    text = raw_response.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
     try:
-        result = json.loads(raw_response)
+        result = json.loads(text)
     except json.JSONDecodeError as exc:
         raise RuntimeError(f"LLM returned invalid JSON: {raw_response}") from exc
 
@@ -125,3 +133,10 @@ def _validate_output(result: dict) -> None:
 
     if not (0 <= result["confidence"] <= 100):
         raise RuntimeError(f"Confidence must be 0-100, got {result['confidence']}")
+
+    if result["category"] == "unclassified":
+        reason = result.get("unclassified_reason")
+        if not isinstance(reason, str) or not reason.strip():
+            raise RuntimeError(
+                "unclassified category requires a non-empty unclassified_reason string"
+            )

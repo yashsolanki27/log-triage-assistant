@@ -93,7 +93,8 @@ CATEGORY_LOGS = {
 
 def _classify_with_mock(error_line: str, expected_category: str, confidence: int = 85):
     """Helper: mock LLM and classify a log, verify category."""
-    response = _make_llm_response(expected_category, confidence)
+    reason = "No matching pattern" if expected_category == "unclassified" else None
+    response = _make_llm_response(expected_category, confidence, reason=reason)
     mock_client = _mock_openai(response)
 
     result = classify_log(_make_parsed_log(error_line), client=mock_client)
@@ -229,3 +230,53 @@ def test_apply_confidence_rule_high():
     result = _apply_confidence_rule(result)
     assert result["category"] == "provisioning-fault"
     assert result["unclassified_reason"] is None
+
+
+# --- Regression: unclassified_reason validation ---
+
+def test_unclassified_with_empty_reason_raises():
+    response = _make_llm_response("unclassified", confidence=85, reason="")
+    mock_client = _mock_openai(response)
+    with pytest.raises(RuntimeError, match="unclassified_reason"):
+        classify_log(_make_parsed_log("some error"), client=mock_client)
+
+
+def test_unclassified_with_none_reason_raises():
+    response = _make_llm_response("unclassified", confidence=85, reason=None)
+    mock_client = _mock_openai(response)
+    with pytest.raises(RuntimeError, match="unclassified_reason"):
+        classify_log(_make_parsed_log("some error"), client=mock_client)
+
+
+def test_unclassified_with_valid_reason_passes():
+    response = _make_llm_response("unclassified", confidence=85, reason="No matching pattern")
+    mock_client = _mock_openai(response)
+    result = classify_log(_make_parsed_log("some error"), client=mock_client)
+    assert result["category"] == "unclassified"
+    assert result["unclassified_reason"] == "No matching pattern"
+
+
+# --- Regression: JSON-fence stripping ---
+
+def test_parse_response_strips_json_fences():
+    fenced = '```json\n{"category":"unclassified","root_cause_summary":"x","confidence":80,"suggested_action":"x","unclassified_reason":null}\n```'
+    result = _parse_response(fenced)
+    assert result["category"] == "unclassified"
+
+
+def test_parse_response_strips_plain_fences():
+    fenced = '```\n{"category":"unclassified","root_cause_summary":"x","confidence":80,"suggested_action":"x","unclassified_reason":null}\n```'
+    result = _parse_response(fenced)
+    assert result["category"] == "unclassified"
+
+
+def test_parse_response_plain_json_still_works():
+    plain = '{"category":"unclassified","root_cause_summary":"x","confidence":80,"suggested_action":"x","unclassified_reason":null}'
+    result = _parse_response(plain)
+    assert result["category"] == "unclassified"
+
+
+def test_parse_response_bare_fences_still_invalid():
+    fenced = '```json\nnot json at all\n```'
+    with pytest.raises(RuntimeError, match="invalid JSON"):
+        _parse_response(fenced)

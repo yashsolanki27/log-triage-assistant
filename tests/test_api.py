@@ -96,3 +96,39 @@ def test_triage_no_body_returns_422():
 def test_triage_whitespace_only_log_text_returns_422():
     response = client.post("/triage", json={"log_text": "   "})
     assert response.status_code == 422
+
+
+# --- Regression: RuntimeError from classifier → 500 with detail ---
+
+@patch("src.api.classify_log")
+def test_triage_classifier_runtime_error_returns_500(mock_classify):
+    mock_classify.side_effect = RuntimeError("LLM returned invalid JSON: garbage")
+
+    response = client.post("/triage", json={"log_text": "some log text"})
+
+    assert response.status_code == 500
+    data = response.json()
+    assert "Classification failed" in data["detail"]
+    assert "LLM returned invalid JSON" in data["detail"]
+
+
+@patch("src.api.classify_log")
+def test_triage_classifier_missing_api_key_returns_500(mock_classify):
+    mock_classify.side_effect = RuntimeError("OPENCODE_API_KEY environment variable not set")
+
+    response = client.post("/triage", json={"log_text": "some log text"})
+
+    assert response.status_code == 500
+    data = response.json()
+    assert "OPENCODE_API_KEY" in data["detail"]
+
+
+@patch("src.api.classify_log")
+def test_triage_classifier_invalid_category_returns_500(mock_classify):
+    mock_classify.side_effect = RuntimeError("Invalid category: bogus")
+
+    response = client.post("/triage", json={"log_text": "some log text"})
+
+    assert response.status_code == 500
+    data = response.json()
+    assert "Invalid category" in data["detail"]

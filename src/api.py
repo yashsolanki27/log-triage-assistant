@@ -45,5 +45,9 @@ def triage(request: TriageRequest) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    result = classify_log(parsed)
+    try:
+        result = classify_log(parsed)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=f"Classification failed: {exc}") from exc
+
     return result
