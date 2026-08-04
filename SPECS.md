@@ -20,7 +20,7 @@
       FastAPI POST /triage, body: {log_text: str}
       Calls parser → classifier, returns JSON result.
 
-- [ ] Unit 5: UI — streamlit_app.py
+- [x] Unit 5: UI — streamlit_app.py
       Textbox for log paste, submit button, calls API, displays result fields.
 
 ## Build order note (Tip 14)
