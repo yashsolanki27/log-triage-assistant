@@ -73,7 +73,7 @@ def _call_llm(prompt: str, client=None) -> str:
         client = anthropic.Anthropic(api_key=api_key)
 
     message = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-5",
         max_tokens=512,
         messages=[{"role": "user", "content": prompt}],
     )
@@ -87,7 +87,13 @@ def _parse_response(raw_response: str) -> dict:
     except json.JSONDecodeError as exc:
         raise RuntimeError(f"LLM returned invalid JSON: {raw_response}") from exc
 
-    required_keys = {"category", "root_cause_summary", "confidence", "suggested_action", "unclassified_reason"}
+    required_keys = {
+        "category",
+        "root_cause_summary",
+        "confidence",
+        "suggested_action",
+        "unclassified_reason",
+    }
     missing = required_keys - result.keys()
     if missing:
         raise RuntimeError(f"LLM response missing keys: {missing}")
