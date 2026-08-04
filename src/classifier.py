@@ -10,7 +10,7 @@ Patterns: one function, one responsibility. No silent fallback.
 import json
 import os
 
-import anthropic
+import openai
 
 from src.prompts import build_classification_prompt
 
@@ -30,7 +30,7 @@ def classify_log(parsed_log: dict, client=None) -> dict:
 
     Args:
         parsed_log: Dict from parser.parse_log() with keys raw_text, extracted_error_line.
-        client: Optional Anthropic client for testing. If None, uses ANTHROPIC_API_KEY.
+        client: Optional OpenAI client for testing. If None, uses OPENCODE_API_KEY.
 
     Returns:
         Dict with keys: category, root_cause_summary, confidence,
@@ -60,24 +60,27 @@ def _validate_input(parsed_log: dict) -> None:
 
 
 def _call_llm(prompt: str, client=None) -> str:
-    """Call the Anthropic Claude API and return the raw text response.
+    """Call the OpenAI-compatible API and return the raw text response.
 
     Args:
         prompt: The formatted prompt to send.
-        client: Optional Anthropic client for testing. If None, creates a new one.
+        client: Optional OpenAI client for testing. If None, creates a new one.
     """
     if client is None:
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        api_key = os.environ.get("OPENCODE_API_KEY")
         if not api_key:
-            raise RuntimeError("ANTHROPIC_API_KEY environment variable not set")
-        client = anthropic.Anthropic(api_key=api_key)
+            raise RuntimeError("OPENCODE_API_KEY environment variable not set")
+        client = openai.OpenAI(
+            base_url="https://opencode.ai/zen/v1",
+            api_key=api_key,
+        )
 
-    message = client.messages.create(
-        model="claude-sonnet-5",
+    message = client.chat.completions.create(
+        model="deepseek-v4-flash-free",
         max_tokens=512,
         messages=[{"role": "user", "content": prompt}],
     )
-    return message.content[0].text
+    return message.choices[0].message.content
 
 
 def _parse_response(raw_response: str) -> dict:
