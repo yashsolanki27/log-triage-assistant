@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # run-loop.sh — Process tech-debt items one at a time via agent.
-# Usage: ./run-loop.sh [AGENT_CMD]
-#   AGENT_CMD: command to run per item (default: "echo TODO: implement agent")
+# Usage: ./run-loop.sh [--dry-run] [AGENT_CMD]
+#   --dry-run:    test stop conditions with a mock agent (no real calls)
+#   AGENT_CMD:    command to run per item (default: "echo TODO: implement agent")
 # Stops when: all items done, or 3 consecutive failures (writes blocked.md).
 set -euo pipefail
 
@@ -10,7 +11,21 @@ STATE_DIR=".run-loop-state"
 LOGS_DIR="logs"
 MAX_CONSECUTIVE_FAILURES=3
 
-AGENT_CMD="${1:-echo TODO: implement agent for item}"
+DRY_RUN=false
+AGENT_CMD=""
+
+for arg in "$@"; do
+    case "$arg" in
+        --dry-run) DRY_RUN=true ;;
+        *)         AGENT_CMD="$arg" ;;
+    esac
+done
+
+if $DRY_RUN; then
+    AGENT_CMD="${AGENT_CMD:-exit 1}"
+elif [[ -z "$AGENT_CMD" ]]; then
+    AGENT_CMD="echo TODO: implement agent for item"
+fi
 
 mkdir -p "$STATE_DIR" "$LOGS_DIR"
 
@@ -54,7 +69,7 @@ is_done() {
 #   1. **Title** — description
 # Extract the leading number from each such line.
 parse_items() {
-    grep -oE '^[0-9]+\.' "$ITEMS_FILE" | sed 's/\.//'
+    grep -oE '^[0-9]+\.' "$ITEMS_FILE" 2>/dev/null | sed 's/\.//' || true
 }
 
 # Return description for an item number (for logging).
@@ -63,8 +78,29 @@ item_description() {
     sed -n "/^${num}\. /p" "$ITEMS_FILE" | head -1
 }
 
+# --- Dry-run test agent -------------------------------------------------------
+# Simulates N failures then success, to verify stop/resume logic.
+dry_run_agent() {
+    local item="$1"
+    local attempt_file="$STATE_DIR/dry-run-attempt-${item}"
+    local attempt=0
+    [[ -f "$attempt_file" ]] && attempt=$(cat "$attempt_file")
+    attempt=$((attempt + 1))
+    echo "$attempt" > "$attempt_file"
+
+    # Fail first 2 attempts per item, succeed on 3rd
+    if [[ $attempt -lt 3 ]]; then
+        echo "DRY-RUN: item $item attempt $attempt — simulating failure"
+        exit 1
+    else
+        echo "DRY-RUN: item $item attempt $attempt — success"
+        exit 0
+    fi
+}
+
 # --- Main loop ---------------------------------------------------------------
-consecutive_failures=0
+# Read initial failure count from state file (not local variable).
+consecutive_failures=$(cat "$failures_file")
 
 while true; do
     # Find next unfinished item
@@ -91,7 +127,11 @@ while true; do
 
     # Run agent, capture output and exit code
     set +e
-    $AGENT_CMD "$next_item" "$desc" > "$log_file" 2>&1
+    if $DRY_RUN; then
+        ( dry_run_agent "$next_item" ) > "$log_file" 2>&1
+    else
+        $AGENT_CMD "$next_item" "$desc" > "$log_file" 2>&1
+    fi
     exit_code=$?
     set -e
 
