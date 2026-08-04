@@ -7,7 +7,7 @@
       Output: cleaned {raw_text, extracted_error_line} dict
       No classification logic here — extraction only.
 
-- [ ] Unit 2: Prompt template — src/prompts.py
+- [x] Unit 2: Prompt template — src/prompts.py
       Holds the classification prompt, referencing docs/business-logic.md taxonomy.
       Not inline in classifier.py (patterns.md rule).
 
@@ -31,7 +31,7 @@ depends on both) → Unit 4 (API) → Unit 5 (UI, depends on API).
 ## TESTS
 
 - [ ] Unit 1: parser strips noise, keeps error line — 3 sample logs, known expected extraction
-- [ ] Unit 2: prompt template renders without missing variables
+- [x] Unit 2: prompt template renders without missing variables
 - [ ] Unit 3: classifier — 5 synthetic logs per category (5x5=25 cases) → correct category ≥90%
 - [ ] Unit 3: low-signal/garbage log → returns unclassified with non-empty reason
 - [ ] Unit 4: API returns 200 + correct schema on valid input, 422 on empty log_text
