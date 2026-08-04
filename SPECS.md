@@ -2,7 +2,7 @@
 
 ## Units
 
-- [ ] Unit 1: Parser — src/parser.py
+- [x] Unit 1: Parser — src/parser.py
       Input: raw pasted log text (single entry, possibly multi-line stack/context)
       Output: cleaned {raw_text, extracted_error_line} dict
       No classification logic here — extraction only.
@@ -30,7 +30,7 @@ depends on both) → Unit 4 (API) → Unit 5 (UI, depends on API).
 
 ## TESTS
 
-- [ ] Unit 1: parser strips noise, keeps error line — 3 sample logs, known expected extraction
+- [x] Unit 1: parser strips noise, keeps error line — 3 sample logs, known expected extraction
 - [x] Unit 2: prompt template renders without missing variables
 - [ ] Unit 3: classifier — 5 synthetic logs per category (5x5=25 cases) → correct category ≥90%
 - [ ] Unit 3: low-signal/garbage log → returns unclassified with non-empty reason
