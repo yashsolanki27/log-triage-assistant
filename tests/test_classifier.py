@@ -32,13 +32,19 @@ def _make_llm_response(category: str, confidence: int = 85, reason: str = None) 
     })
 
 
-def _mock_anthropic(response_text: str):
-    """Return a mock Anthropic client that returns the given response."""
+def _mock_openai(response_text: str):
+    """Return a mock OpenAI client that returns the given response."""
     mock_message = MagicMock()
-    mock_message.content = [MagicMock(text=response_text)]
+    mock_message.content = response_text
+
+    mock_choice = MagicMock()
+    mock_choice.message = mock_message
+
+    mock_response = MagicMock()
+    mock_response.choices = [mock_choice]
 
     mock_client = MagicMock()
-    mock_client.messages.create.return_value = mock_message
+    mock_client.chat.completions.create.return_value = mock_response
     return mock_client
 
 
@@ -88,7 +94,7 @@ CATEGORY_LOGS = {
 def _classify_with_mock(error_line: str, expected_category: str, confidence: int = 85):
     """Helper: mock LLM and classify a log, verify category."""
     response = _make_llm_response(expected_category, confidence)
-    mock_client = _mock_anthropic(response)
+    mock_client = _mock_openai(response)
 
     result = classify_log(_make_parsed_log(error_line), client=mock_client)
 
@@ -129,7 +135,7 @@ def test_classify_unclassified(log_text):
 def test_garbage_log_returns_unclassified():
     garbage = "asdfghjkl random noise 12345 !@#$%"
     response = _make_llm_response("unclassified", confidence=30, reason="No meaningful content")
-    mock_client = _mock_anthropic(response)
+    mock_client = _mock_openai(response)
 
     result = classify_log(_make_parsed_log(garbage), client=mock_client)
 
@@ -141,7 +147,7 @@ def test_garbage_log_returns_unclassified():
 
 def test_low_confidence_forces_unclassified():
     response = _make_llm_response("provisioning-fault", confidence=55)
-    mock_client = _mock_anthropic(response)
+    mock_client = _mock_openai(response)
 
     result = classify_log(_make_parsed_log("some error"), client=mock_client)
 
@@ -152,7 +158,7 @@ def test_low_confidence_forces_unclassified():
 
 def test_confidence_exactly_70_not_forced():
     response = _make_llm_response("provisioning-fault", confidence=70)
-    mock_client = _mock_anthropic(response)
+    mock_client = _mock_openai(response)
 
     result = classify_log(_make_parsed_log("some error"), client=mock_client)
 
@@ -174,14 +180,14 @@ def test_missing_extracted_error_line_key_raises():
 # --- LLM response parsing ---
 
 def test_invalid_json_raises():
-    mock_client = _mock_anthropic("not valid json {{{")
+    mock_client = _mock_openai("not valid json {{{")
     with pytest.raises(RuntimeError, match="invalid JSON"):
         classify_log(_make_parsed_log("error"), client=mock_client)
 
 
 def test_missing_keys_in_response_raises():
     response = json.dumps({"category": "unclassified"})
-    mock_client = _mock_anthropic(response)
+    mock_client = _mock_openai(response)
     with pytest.raises(RuntimeError, match="missing keys"):
         classify_log(_make_parsed_log("error"), client=mock_client)
 
@@ -190,21 +196,21 @@ def test_missing_keys_in_response_raises():
 
 def test_invalid_category_raises():
     response = _make_llm_response("made-up-category")
-    mock_client = _mock_anthropic(response)
+    mock_client = _mock_openai(response)
     with pytest.raises(RuntimeError, match="Invalid category"):
         classify_log(_make_parsed_log("error"), client=mock_client)
 
 
 def test_confidence_out_of_range_raises():
     response = _make_llm_response("unclassified", confidence=150)
-    mock_client = _mock_anthropic(response)
+    mock_client = _mock_openai(response)
     with pytest.raises(RuntimeError, match="Confidence must be 0-100"):
         classify_log(_make_parsed_log("error"), client=mock_client)
 
 
 def test_confidence_negative_raises():
     response = _make_llm_response("unclassified", confidence=-5)
-    mock_client = _mock_anthropic(response)
+    mock_client = _mock_openai(response)
     with pytest.raises(RuntimeError, match="Confidence must be 0-100"):
         classify_log(_make_parsed_log("error"), client=mock_client)
 
