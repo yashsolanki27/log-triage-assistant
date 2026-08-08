@@ -1,71 +1,82 @@
-"""Streamlit UI — Log Triage Assistant.
+"""Streamlit UI — OSS/BSS Log Classifier.
 
-Text input for log paste, submit button, calls POST /triage API,
-and displays classification result fields.
+Entry point for multi-page navigation. Sidebar contains project
+overview and category reference shared across all pages.
 
 Patterns: one function, one responsibility. No silent fallback.
 """
 
-import requests
 import streamlit as st
 
+# ---------------------------------------------------------------------------
+# Page config (must be first st call)
+# ---------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Log Triage Assistant",
-    page_icon=":material/search:",
-    layout="centered",
+    page_title="OSS/BSS Log Classifier",
+    page_icon=":material/psychology:",
+    layout="wide",
+    initial_sidebar_state="expanded",
 )
 
-st.title("Log Triage Assistant")
-st.caption("Paste an OSS/BSS log entry to classify error patterns and get root cause analysis.")
-
-API_URL = "http://localhost:8000/triage"
-
-log_text = st.text_area(
-    "Log entry",
-    placeholder="Paste your log text here...",
-    height=200,
-    label_visibility="collapsed",
+# ---------------------------------------------------------------------------
+# Navigation
+# ---------------------------------------------------------------------------
+page = st.navigation(
+    [
+        st.Page(
+            "app_pages/triage.py",
+            title="Analyze logs",
+            icon=":material/play_arrow:",
+        ),
+        st.Page(
+            "app_pages/logs_list.py",
+            title="Sample logs",
+            icon=":material/library_books:",
+        ),
+    ],
+    position="top",
 )
 
-with st.container(horizontal=True, horizontal_alignment="right"):
-    analyze_button = st.button(
-        "Analyze",
-        type="primary",
-        icon=":material/search:",
+# ---------------------------------------------------------------------------
+# Sidebar (shared across all pages)
+# ---------------------------------------------------------------------------
+with st.sidebar:
+    st.markdown("## :material/psychology: OSS/BSS Log Classifier")
+    st.caption("Automated root cause analysis for telecom support teams")
+    st.space("small")
+
+    st.markdown("### :material/robot_2: How it works")
+    st.markdown(
+        "1. You paste a raw log entry\n"
+        "2. The parser extracts the error line\n"
+        "3. An LLM classifies the error pattern\n"
+        "4. You get the root cause and next action"
     )
+    st.space("small")
 
-if analyze_button and log_text.strip():
-    with st.spinner("Classifying..."):
-        try:
-            response = requests.post(API_URL, json={"log_text": log_text}, timeout=30)
-            response.raise_for_status()
-            result = response.json()
-        except requests.ConnectionError:
-            st.error("Cannot connect to API server. Ensure FastAPI is running on port 8000.")
-        except requests.Timeout:
-            st.error("API request timed out. Please try again.")
-        except requests.HTTPError as exc:
-            detail = exc.response.json().get("detail", "Unknown error") if exc.response else "Unknown error"
-            st.error(f"API error: {detail}")
-        else:
-            with st.container(border=True):
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    st.subheader("Root cause summary")
-                    st.write(result["root_cause_summary"])
-                with col2:
-                    st.subheader("Confidence")
-                    st.metric(label="%", value=result["confidence"])
+    st.markdown("### :material/category: Error categories")
+    st.markdown(
+        "| Category | What it catches |\n"
+        "|---|---|\n"
+        "| **next-tache-error** | Task sequencing violations |\n"
+        "| **state-transition-block** | Orders stuck in a state |\n"
+        "| **provisioning-fault** | Config or node failures |\n"
+        "| **api-integration-error** | REST / SOAP API failures |\n"
+        "| **unclassified** | Everything else |"
+    )
+    st.space("small")
 
-                st.subheader("Suggested action")
-                st.write(result["suggested_action"])
+    st.markdown("### :material/lightbulb: Quick start")
+    st.markdown(
+        "New here? Click the **Sample logs** tab to grab a "
+        "pre-built log, then switch to **Analyze logs** to run it."
+    )
+    st.space("small")
 
-                st.divider()
+    st.markdown("---")
+    st.caption("Backend: FastAPI on port 8000")
 
-                col_cat, col_reason = st.columns(2)
-                with col_cat:
-                    st.subheader("Category")
-                    st.write(result["category"])
-                with col_reason:
-                    st.subheader("Unclassified reason")
-                    st.write(result["unclassified_reason"] or "N/A")
+# ---------------------------------------------------------------------------
+# Run the active page
+# ---------------------------------------------------------------------------
+page.run()
