@@ -118,55 +118,130 @@ log-triage-assistant/
 ├── .streamlit/
 │   └── config.toml               # Dark OLED theme config
 ├── Sample_Logs_Titles.xlsx       # Original log data (Excel reference)
+├── Yash-Solanki-Application-Support-Engineer.pdf  # Resume
+├── ui-ux-pro-max/                # External UI/UX design system tool
 ├── requirements.txt              # Python dependencies
 ├── pytest.ini                    # Pytest config
 ├── SPECS.md                      # Build specs and test status
 ├── AGENTS.md                     # AI agent instructions
-└── README.md                     # ← You are here
+└── PROJECT.md                    # This file
 ```
 
 ---
 
 ## Frontend details (for AI handoff)
 
-### Current UI
+### Current UI — page by page
 
-The frontend is a **Streamlit multi-page app** with a dark OLED theme.
+#### 1. `streamlit_app.py` (entry point)
 
-**Pages:**
-1. **Analyze logs** (`app_pages/triage.py`) — Text area for log paste,
-   "Classify log" button, results display with category badge, confidence
-   score, root cause, suggested action, and unclassified reason.
+- Calls `st.set_page_config()` — title "OSS/BSS Log Classifier", icon
+  `:material/psychology:`, layout "wide"
+- Defines `st.navigation()` with two pages (top tabs):
+  - "Analyze logs" → `app_pages/triage.py`
+  - "Sample logs" → `app_pages/logs_list.py`
+- Renders shared sidebar:
+  - Project title + caption
+  - "How it works" (4-step numbered list)
+  - "Error categories" table (5 rows)
+  - "Quick start" tip
+  - Backend info caption
 
-2. **Sample logs** (`app_pages/logs_list.py`) — 39 pre-built logs grouped
-   by category. Each log shows title, original tag, and raw log text in a
-   code block. Users select text, copy (Ctrl+C), and paste into the
-   Analyze page.
+#### 2. `app_pages/triage.py` (analyze page)
 
-**Theme:** `.streamlit/config.toml` — Dark OLED palette:
-- Background: `#0d1117` / `#161b22`
-- Primary: `#3B82F6` (blue)
-- Text: `#e6edf3`
-- Font: Fira Sans + Fira Code
-- Rounded corners (10px), visible widget borders
+Layout (top to bottom):
+1. Section header: "Paste your log entry" + caption
+2. `st.container(border=True)` containing:
+   - `st.text_area` — 200px height, placeholder with example log
+   - `st.columns([6, 1])` — spacer + "Classify log" button (primary, `:material/search:`)
+3. On click → `requests.post("http://localhost:8000/triage", json={"log_text": ...})`
+4. Results (when successful):
+   - `st.success("Classification complete")`
+   - 3-column metrics row:
+     - "Detected category" → `st.badge(category, color=...)`
+     - "Confidence score" → `st.badge(f"{confidence}%", color=green/orange/red)`
+     - "Verdict" → `st.badge("Classified" or "Needs manual review")`
+   - Two bordered containers:
+     - "Root cause" → `st.markdown(result["root_cause_summary"])`
+     - "Suggested next action" → `st.markdown(result["suggested_action"])`
+   - Conditional bordered container:
+     - "Why it is unclassified" → only when `unclassified_reason` is not null
+5. Error states: `st.error()` for connection, timeout, HTTP errors
+6. Empty input: `st.warning("Paste a log entry first")`
 
-**Navigation:** Top tabs via `st.navigation()` — "Analyze logs" + "Sample logs"
+#### 3. `app_pages/logs_list.py` (sample logs page)
 
-**Sidebar:** Shared across pages — project description, how-it-works,
-category reference table, quick start guide.
+Layout (top to bottom):
+1. Section header: "Sample logs for testing" + copy instructions
+2. For each category (next-tache-error → unclassified):
+   - Category heading with badge count: `#### Task sequencing :gray-badge[2 logs]`
+   - Caption: category description
+   - For each log in that category:
+     - `st.container(border=True)` with `st.columns([4, 6])`:
+       - Left: bold title + caption with tag
+       - Right: `st.code(entry["log"], language=None, wrap_lines=True)`
+3. Footer: `st.info("Switch to Analyze logs tab...")`
+
+### Theme colors (`.streamlit/config.toml`)
+
+| Token | Hex | Usage |
+|-------|-----|-------|
+| Primary | `#3B82F6` | Buttons, active elements, links |
+| Background | `#0d1117` | Main page background |
+| Secondary BG | `#161b22` | Widget backgrounds, code blocks |
+| Text | `#e6edf3` | Body text |
+| Border | `#30363d` | Widget borders, containers |
+| Code text | `#d2a8ff` | Inline code, code blocks |
+| Red | `#f85149` | Errors, provisioning-fault |
+| Green | `#3fb950` | Success, high confidence |
+| Orange | `#d29922` | Warnings, medium confidence |
+| Blue | `#58a6ff` | Links, next-tache-error |
+| Violet | `#bc8cff` | api-integration-error |
+| Gray | `#8b949e` | Unclassified, muted text |
+
+### Font stack
+
+- **Body:** Fira Sans (Google Fonts) — weights 300-700
+- **Headings:** Fira Sans — weights 500-700
+- **Code:** Fira Code (Google Fonts) — weights 400-600
+- **Base size:** 15px
 
 ### What the frontend does NOT have (improvement opportunities)
 
-- No history of past classifications (no session persistence)
-- No batch upload (one log at a time)
-- No export/download of results
-- No charts or analytics dashboard
-- No light/dark mode toggle (dark only)
-- No mobile-optimized layout
-- No loading skeleton (just a spinner)
-- No keyboard shortcuts
-- No real-time classification streaming
-- No authentication or multi-user support
+These are concrete gaps the next AI should address:
+
+1. **No classification history** — Results disappear on page refresh.
+   Add `st.session_state` to persist past results in a scrollable list.
+
+2. **No batch upload** — One log at a time. Add file upload (`.txt`, `.log`)
+   that processes multiple logs and shows results in a table.
+
+3. **No export/download** — Results can't be saved. Add CSV/JSON export button.
+
+4. **No analytics dashboard** — No charts showing classification distribution,
+   confidence trends, or category breakdown over time.
+
+5. **No light/dark mode toggle** — Dark only. Could add `[theme.light]` and
+   `[theme.dark]` sections to config.toml and let users switch.
+
+6. **No mobile optimization** — Layout is "wide" but not responsive. Code blocks
+   overflow on small screens.
+
+7. **No loading skeleton** — Just a spinner. Add skeleton placeholders for
+   better perceived performance.
+
+8. **No keyboard shortcuts** — No Ctrl+Enter to submit, no tab navigation.
+
+9. **No real-time streaming** — LLM response comes all at once. Could use
+   Server-Sent Events to stream the classification as it's generated.
+
+10. **No side-by-side comparison** — Can't compare two log classifications.
+
+11. **No search/filter in sample logs** — 39 logs with no search. Add a
+    `st.text_input` filter above the log list.
+
+12. **No category color coding on results** — Category badge is colored but
+    the result containers are all the same. Could tint containers by category.
 
 ### API contract
 
@@ -238,11 +313,14 @@ To add logs: edit `data/sample_logs.py`, add to the `SAMPLE_LOGS` list.
 - Material Symbols icons (`:material/icon_name:`) — no emojis
 - Sentence casing for titles and labels
 - `st.code()` for log display (select-and-copy friendly)
+- Prefer `st.container(border=True)` over `st.divider()` for spacing
+- Use `st.badge()` for status indicators
+- Never use `use_container_width` (deprecated) — use `width="stretch"` instead
 
 ---
 
 ## Git info
 
 - **Current branch:** `fix/swap-llm-provider`
-- **Remote:** `origin`
+- **Remote:** `origin` → `https://github.com/yashsolanki27/log-triage-assistant.git`
 - **Status:** Clean working tree after commit
