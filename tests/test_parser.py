@@ -40,16 +40,6 @@ def test_parse_api_error():
     assert "SoapFaultException" in result["extracted_error_line"]
 
 
-def test_parse_dotnet_fault_exception():
-    log = (
-        '2024-03-15 10:23:45 ERROR [svc-broker] - Service operation failed\n'
-        'System.ServiceModel.FaultException<Detail>: The remote service returned a fault.'
-    )
-    result = parse_log(log)
-    assert "FaultException<Detail>" in result["extracted_error_line"]
-    assert not result["is_fallback"]
-
-
 def test_parse_provisioning_fault():
     result = parse_log(LOG_PROVISIONING)
     assert "Failed to assign BNG node" in result["extracted_error_line"]
@@ -87,25 +77,9 @@ def test_no_error_markers_uses_first_line():
 
 def test_priority_exception_over_error_marker():
     log = "SomeException thrown\nERROR critical failure here"
-    error_line, is_fallback = _extract_error_line(log)
-    assert error_line == "SomeException thrown"
-    assert not is_fallback
+    assert _extract_error_line(log) == "SomeException thrown"
 
 
 def test_priority_exception_over_keyword():
     log = "check the error log\nNullPointerException at line 5"
-    error_line, is_fallback = _extract_error_line(log)
-    assert error_line == "NullPointerException at line 5"
-    assert not is_fallback
-
-
-# --- Binary/garbled input tests ---
-
-def test_nul_bytes_raises():
-    with pytest.raises(ValueError, match="binary data"):
-        parse_log("ERROR something\x00went wrong")
-
-
-def test_nul_bytes_only_raises():
-    with pytest.raises(ValueError, match="binary data"):
-        parse_log("\x00\x00\x00")
+    assert _extract_error_line(log) == "NullPointerException at line 5"

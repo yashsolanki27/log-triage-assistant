@@ -1,63 +1,115 @@
-"""FastAPI layer — exposes POST /triage endpoint.
+"""FastAPI layer — Unit 4.
 
-Body: {log_text: str}
-Calls parser → classifier, returns JSON result.
+POST /triage        body: {log_text: str}      -> parser -> classifier -> stored result
+GET  /history        query: limit, offset, category -> past triage results
+GET  /triage/{id}     -> single stored triage result
+GET  /stats          -> aggregate counts for the dashboard
 
-Patterns: one function, one responsibility. No silent fallback.
+Also serves the static frontend from /web at "/", so the whole app runs
+from a single `uvicorn src.api:app` process.
 """
 
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field, model_validator
+from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import Optional
 
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
+
+from src import db
 from src.classifier import classify_log
 from src.parser import parse_log
 
-app = FastAPI(title="Log Triage Assistant", version="0.1.0")
+# Initialise the DB at import time (not just on ASGI startup) so the app
+# works correctly under test clients that don't trigger lifespan events.
+db.init_db()
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    db.init_db()
+    yield
+
+
+app = FastAPI(title="Log Triage Assistant API", version="1.1.0", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class TriageRequest(BaseModel):
-    """Request body for /triage endpoint."""
-
-    log_text: str = Field(..., min_length=1, description="Raw log text to classify")
+    log_text: str = Field(..., min_length=1, description="Raw pasted log text")
 
 
-class TriageResponse(BaseModel):
-    """Response body for /triage endpoint."""
-
+class TriageResult(BaseModel):
+    id: int
+    created_at: str
+    raw_text: str
+    extracted_error_line: str
     category: str
     root_cause_summary: str
     confidence: int
     suggested_action: str
-    unclassified_reason: str | None
-
-    @model_validator(mode="after")
-    def validate_unclassified_reason(self) -> "TriageResponse":
-        if self.category == "unclassified":
-            if not self.unclassified_reason or not self.unclassified_reason.strip():
-                raise ValueError("unclassified category requires a non-empty unclassified_reason")
-        else:
-            if self.unclassified_reason is not None:
-                raise ValueError("non-unclassified category must have unclassified_reason=None")
-        return self
+    unclassified_reason: Optional[str] = None
 
 
-@app.post("/triage", response_model=TriageResponse)
-def triage(request: TriageRequest) -> dict:
-    """Classify a log entry and return root cause analysis.
+@app.post("/triage", response_model=TriageResult)
+def triage(request: TriageRequest):
+    if not request.log_text.strip():
+        raise HTTPException(status_code=422, detail="log_text must be non-empty")
 
-    Steps:
-    1. Parse raw log text → extract error line.
-    2. Classify via LLM → category, confidence, summary.
-    3. Return structured result.
-    """
     try:
         parsed = parse_log(request.log_text)
+        result = classify_log(parsed)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-
-    try:
-        result = classify_log(parsed)
     except RuntimeError as exc:
-        raise HTTPException(status_code=500, detail=f"Classification failed: {exc}") from exc
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
+    saved = db.save_triage(parsed, result)
+    return saved
+
+
+@app.get("/history", response_model=list[TriageResult])
+def history(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    category: Optional[str] = Query(None),
+):
+    return db.list_triages(limit=limit, offset=offset, category=category)
+
+
+@app.get("/triage/{triage_id}", response_model=TriageResult)
+def get_triage(triage_id: int):
+    result = db.get_triage(triage_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Triage not found")
     return result
+
+
+@app.get("/stats")
+def stats():
+    return db.get_stats()
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
+# --- Static frontend ---------------------------------------------------
+_WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+
+if _WEB_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=_WEB_DIR), name="assets")
+
+    @app.get("/")
+    def index():
+        return FileResponse(_WEB_DIR / "index.html")

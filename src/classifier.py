@@ -1,146 +1,129 @@
-"""Log classifier — calls LLM to classify parsed log errors.
+"""Log classifier — calls the LLM with the prompts.py template and returns
+a structured triage result.
 
-Input: parser output dict with raw_text, extracted_error_line.
+Input: parser output ({raw_text, extracted_error_line})
 Output: {category, root_cause_summary, confidence, suggested_action, unclassified_reason}
-Confidence <70% → force category=unclassified, populate unclassified_reason.
 
-Patterns: one function, one responsibility. No silent fallback.
+Confidence <70% -> force category=unclassified, populate unclassified_reason.
+No prompt text lives here — see src/prompts.py (patterns.md rule).
 """
 
 import json
 import os
+import re
 
-import openai
+from openai import OpenAI
 
 from src.prompts import build_classification_prompt
 
-VALID_CATEGORIES = [
+VALID_CATEGORIES = {
     "next-tache-error",
     "state-transition-block",
     "provisioning-fault",
     "api-integration-error",
     "unclassified",
-]
+}
 
 CONFIDENCE_THRESHOLD = 70
-MODEL_NAME = os.environ.get("LLM_MODEL_NAME", "deepseek-v4-flash-free")
-BASE_URL = os.environ.get("OPENCODE_BASE_URL", "https://opencode.ai/zen/v1")
+
+_client = None
 
 
-def classify_log(parsed_log: dict, client=None) -> dict:
-    """Classify a parsed log entry using an LLM call.
+def _get_client() -> OpenAI:
+    global _client
+    if _client is None:
+        api_key = os.environ.get("OPENCODE_API_KEY") or os.environ.get("OPENAI_API_KEY")
+        base_url = os.environ.get("OPENCODE_BASE_URL", "https://opencode.ai/zen/v1")
+        if not api_key:
+            raise RuntimeError(
+                "OPENCODE_API_KEY is not set. Export it or add it to a .env file "
+                "before starting the API (see .env.example)."
+            )
+        _client = OpenAI(api_key=api_key, base_url=base_url)
+    return _client
+
+
+def classify_log(parsed: dict) -> dict:
+    """Classify a parsed log entry via the LLM.
 
     Args:
-        parsed_log: Dict from parser.parse_log() with keys raw_text, extracted_error_line.
-        client: Optional OpenAI client for testing. If None, reads the OPENCODE_API_KEY environment variable.
+        parsed: Output of src.parser.parse_log — dict with raw_text,
+            extracted_error_line.
 
     Returns:
         Dict with keys: category, root_cause_summary, confidence,
         suggested_action, unclassified_reason.
 
     Raises:
-        ValueError: If parsed_log is missing required keys.
-        RuntimeError: If LLM call fails or returns unparseable response.
+        ValueError: If parsed is missing required keys.
+        RuntimeError: If the LLM response cannot be parsed as valid JSON.
     """
-    _validate_input(parsed_log)
+    if not parsed or not parsed.get("raw_text"):
+        raise ValueError("parsed must contain non-empty raw_text")
 
-    prompt = build_classification_prompt(parsed_log["extracted_error_line"])
-    raw_response = _call_llm(prompt, client=client)
-    result = _parse_response(raw_response)
+    prompt = build_classification_prompt(parsed["raw_text"])
 
-    result = _apply_confidence_rule(result)
-    _validate_output(result)
-
-    return result
-
-
-def _validate_input(parsed_log: dict) -> None:
-    """Ensure parser output has required keys."""
-    missing = [k for k in ("raw_text", "extracted_error_line") if k not in parsed_log]
-    if missing:
-        raise ValueError(f"parsed_log missing keys: {missing}")
-
-
-def _call_llm(prompt: str, client=None) -> str:
-    """Call the OpenAI-compatible API and return the raw text response.
-
-    Args:
-        prompt: The formatted prompt to send.
-        client: Optional OpenAI client for testing. If None, creates a new one.
-    """
-    if client is None:
-        api_key = os.environ.get("OPENCODE_API_KEY")
-        if not api_key:
-            raise RuntimeError("OPENCODE_API_KEY environment variable not set")
-        client = openai.OpenAI(
-            base_url=BASE_URL,
-            api_key=api_key,
-        )
-
-    message = client.chat.completions.create(
-        model=MODEL_NAME,
-        max_tokens=512,
+    client = _get_client()
+    model = os.environ.get("LLM_MODEL_NAME", "deepseek-v4-flash-free")
+    response = client.chat.completions.create(
+        model=model,
+        max_tokens=1000,
         messages=[{"role": "user", "content": prompt}],
     )
-    return message.choices[0].message.content
+
+    text = response.choices[0].message.content
+
+    result = _parse_llm_json(text)
+    return _apply_confidence_rule(result)
 
 
-def _parse_response(raw_response: str) -> dict:
-    """Extract and validate JSON from the LLM response text."""
-    text = raw_response.strip()
-    if text.startswith("```"):
-        lines = text.splitlines()
-        lines = lines[1:]
-        if lines and lines[-1].strip() == "```":
-            lines = lines[:-1]
-        text = "\n".join(lines).strip()
+def _parse_llm_json(text: str) -> dict:
+    """Strip markdown fences if present and parse JSON, with a clear error."""
+    cleaned = text.strip()
+    cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+    cleaned = re.sub(r"\s*```$", "", cleaned)
+
     try:
-        result = json.loads(text)
+        data = json.loads(cleaned)
     except json.JSONDecodeError as exc:
-        raise RuntimeError(f"LLM returned invalid JSON: {raw_response}") from exc
+        raise RuntimeError(f"LLM returned non-JSON response: {text!r}") from exc
 
-    required_keys = {
-        "category",
-        "root_cause_summary",
-        "confidence",
-        "suggested_action",
-        "unclassified_reason",
-    }
-    missing = required_keys - result.keys()
+    required = {"category", "root_cause_summary", "confidence", "suggested_action"}
+    missing = required - data.keys()
     if missing:
-        raise RuntimeError(f"LLM response missing keys: {missing}")
+        raise RuntimeError(f"LLM response missing required fields: {missing}")
 
-    return result
+    data.setdefault("unclassified_reason", None)
+    return data
 
 
 def _apply_confidence_rule(result: dict) -> dict:
-    """Force unclassified if confidence is below threshold."""
-    if result["confidence"] < CONFIDENCE_THRESHOLD:
-        return {
-            **result,
-            "category": "unclassified",
-            "unclassified_reason": (
-                f"Confidence {result['confidence']}% is below {CONFIDENCE_THRESHOLD}% threshold. "
-                + (result.get("unclassified_reason") or "Low confidence in classification.")
-            ),
-        }
-    return {**result}
+    """Enforce the business rule as a safety net, even if the model didn't.
 
+    <70% confidence must always surface as unclassified with a reason —
+    this is not something we trust the model to self-police (patterns.md:
+    unclassified is a valid output, never a silently hidden one).
+    """
+    category = result.get("category")
+    confidence = result.get("confidence")
 
-def _validate_output(result: dict) -> None:
-    """Ensure final output conforms to expected schema."""
-    if result["category"] not in VALID_CATEGORIES:
-        raise RuntimeError(f"Invalid category: {result['category']}")
+    if category not in VALID_CATEGORIES:
+        result["category"] = "unclassified"
+        result["unclassified_reason"] = (
+            result.get("unclassified_reason")
+            or f"Model returned unrecognised category: {category!r}"
+        )
+        category = "unclassified"
 
-    if not isinstance(result["confidence"], int):
-        raise RuntimeError(f"Confidence must be int, got {type(result['confidence'])}")
-
-    if not (0 <= result["confidence"] <= 100):
-        raise RuntimeError(f"Confidence must be 0-100, got {result['confidence']}")
-
-    if result["category"] == "unclassified":
-        reason = result.get("unclassified_reason")
-        if not isinstance(reason, str) or not reason.strip():
-            raise RuntimeError(
-                "unclassified category requires a non-empty unclassified_reason string"
+    if isinstance(confidence, (int, float)) and confidence < CONFIDENCE_THRESHOLD:
+        if category != "unclassified":
+            result["category"] = "unclassified"
+        if not result.get("unclassified_reason"):
+            result["unclassified_reason"] = (
+                f"Confidence {confidence} is below the {CONFIDENCE_THRESHOLD}% threshold."
             )
+
+    if result["category"] != "unclassified":
+        result["unclassified_reason"] = None
+
+    return result

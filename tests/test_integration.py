@@ -1,7 +1,7 @@
 """Integration tests — full parser → classifier pipeline with mocked LLM."""
 
 import json
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from src.classifier import classify_log
 from src.parser import parse_log
@@ -93,7 +93,8 @@ def test_pipeline_end_to_end():
             payload["unclassified_reason"] = f"Confidence {confidence}% below threshold"
 
         mock_client = _mock_openai_client(payload)
-        result = classify_log(parsed, client=mock_client)
+        with patch("src.classifier._client", mock_client):
+            result = classify_log(parsed)
 
         # Assert pipeline output schema
         assert set(result.keys()) == {
@@ -129,7 +130,8 @@ def test_pipeline_error_line_fed_to_classifier():
         "unclassified_reason": None,
     }
     mock_client = _mock_openai_client(payload)
-    result = classify_log(parsed, client=mock_client)
+    with patch("src.classifier._client", mock_client):
+        result = classify_log(parsed)
 
     assert result["category"] == "next-tache-error"
     # Ensure the classifier was called with the prompt containing the extracted error line

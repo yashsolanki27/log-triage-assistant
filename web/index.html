@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0A0D12" />
+<title>Log Triage Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- Desktop / tablet sidebar -->
+  <aside class="sidebar" aria-label="Main navigation">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="26" height="26">
+          <path d="M3 20 L9 20 L12 10 L16 26 L20 14 L23 20 L29 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="brand-text">
+        <span class="brand-name">Triage</span>
+        <span class="brand-sub">Log Assistant</span>
+      </span>
+    </div>
+
+    <nav class="nav" role="navigation">
+      <button class="nav-item" data-route="triage" aria-current="page">
+        <svg class="nav-icon" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h10M4 18h7" stroke-linecap="round"/></svg>
+        <span>Triage</span>
+      </button>
+      <button class="nav-item" data-route="history">
+        <svg class="nav-icon" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 8v5l3 2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="8.5"/></svg>
+        <span>History</span>
+      </button>
+      <button class="nav-item" data-route="dashboard">
+        <svg class="nav-icon" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V10M11 19V5M18 19v-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Dashboard</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="taxonomy-key">
+        <p class="taxonomy-key-label">Categories</p>
+        <ul>
+          <li><span class="dot" style="--dot: var(--cat-next-tache)"></span>Next-tâche error</li>
+          <li><span class="dot" style="--dot: var(--cat-state-transition)"></span>State-transition block</li>
+          <li><span class="dot" style="--dot: var(--cat-provisioning)"></span>Provisioning fault</li>
+          <li><span class="dot" style="--dot: var(--cat-api)"></span>API-integration error</li>
+          <li><span class="dot" style="--dot: var(--cat-unclassified)"></span>Unclassified</li>
+        </ul>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main" id="main" role="main">
+    <!-- views injected here by app.js -->
+  </main>
+
+  <!-- Mobile bottom tab bar -->
+  <nav class="tabbar" aria-label="Main navigation">
+    <button class="tab-item" data-route="triage" aria-current="page">
+      <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h10M4 18h7" stroke-linecap="round"/></svg>
+      <span>Triage</span>
+    </button>
+    <button class="tab-item" data-route="history">
+      <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 8v5l3 2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="8.5"/></svg>
+      <span>History</span>
+    </button>
+    <button class="tab-item" data-route="dashboard">
+      <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V10M11 19V5M18 19v-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Dashboard</span>
+    </button>
+  </nav>
+</div>
+
+<!-- Templates -->
+<template id="tpl-triage">
+  <div class="view" data-view="triage">
+    <header class="view-header">
+      <div>
+        <p class="eyebrow">Root cause classification</p>
+        <h1>Triage a log entry</h1>
+        <p class="lede">Paste an OSS/BSS log excerpt. It's parsed for the primary error line, then classified against the root-cause taxonomy with a confidence score and a suggested next action.</p>
+      </div>
+    </header>
+
+    <svg class="trace-divider" viewBox="0 0 1000 40" preserveAspectRatio="none" aria-hidden="true">
+      <path class="trace-path" d="M0 20 L120 20 L150 6 L180 34 L210 20 L1000 20" fill="none" stroke-width="1.5"/>
+    </svg>
+
+    <section class="panel" aria-labelledby="input-heading">
+      <h2 id="input-heading" class="visually-hidden">Log input</h2>
+      <form id="triage-form">
+        <label class="field-label" for="log-input">Log excerpt</label>
+        <textarea id="log-input" name="log_text" class="log-textarea" rows="10"
+          placeholder="2024-03-15 10:23:45 ERROR [order-service] - Processing failed&#10;java.lang.NullPointerException: Cannot invoke method getStatus() on null object&#10;    at com.example.OrderProcessor.process(OrderProcessor.java:142)"
+          spellcheck="false" required></textarea>
+        <div class="field-row">
+          <p class="field-hint" id="char-count">0 characters</p>
+          <div class="field-actions">
+            <button type="button" class="btn btn-ghost" id="btn-sample">Load sample</button>
+            <button type="button" class="btn btn-ghost" id="btn-clear">Clear</button>
+            <button type="submit" class="btn btn-primary" id="btn-submit">
+              <span class="btn-label">Classify</span>
+              <svg class="btn-spinner" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.5" stroke-dasharray="42" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <div id="triage-error" class="alert alert-error" hidden role="alert"></div>
+
+    <section id="result-panel" class="result-panel" hidden aria-live="polite"></section>
+  </div>
+</template>
+
+<template id="tpl-history">
+  <div class="view" data-view="history">
+    <header class="view-header">
+      <div>
+        <p class="eyebrow">Past submissions</p>
+        <h1>History</h1>
+        <p class="lede">Every triaged log entry, most recent first. Filter by category or open an entry for the full result.</p>
+      </div>
+    </header>
+
+    <div class="toolbar">
+      <div class="chip-group" id="category-filters" role="group" aria-label="Filter by category">
+        <button class="chip is-active" data-cat="">All</button>
+        <button class="chip" data-cat="next-tache-error"><span class="dot" style="--dot: var(--cat-next-tache)"></span>Next-tâche</button>
+        <button class="chip" data-cat="state-transition-block"><span class="dot" style="--dot: var(--cat-state-transition)"></span>State-transition</button>
+        <button class="chip" data-cat="provisioning-fault"><span class="dot" style="--dot: var(--cat-provisioning)"></span>Provisioning</button>
+        <button class="chip" data-cat="api-integration-error"><span class="dot" style="--dot: var(--cat-api)"></span>API-integration</button>
+        <button class="chip" data-cat="unclassified"><span class="dot" style="--dot: var(--cat-unclassified)"></span>Unclassified</button>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="btn-refresh-history">Refresh</button>
+    </div>
+
+    <div id="history-list" class="history-list"></div>
+    <div id="history-empty" class="empty-state" hidden>
+      <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v5l3 2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <p>No triage results yet.</p>
+      <p class="empty-sub">Classify a log on the Triage screen — it will show up here.</p>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-dashboard">
+  <div class="view" data-view="dashboard">
+    <header class="view-header">
+      <div>
+        <p class="eyebrow">Operational overview</p>
+        <h1>Dashboard</h1>
+        <p class="lede">Volume, category mix, and confidence across everything triaged so far.</p>
+      </div>
+    </header>
+
+    <section class="stat-grid" id="stat-grid"></section>
+
+    <section class="dash-grid">
+      <div class="panel">
+        <h2 class="panel-title">Category mix</h2>
+        <div id="donut-wrap" class="donut-wrap"></div>
+      </div>
+      <div class="panel">
+        <h2 class="panel-title">Volume — last 14 days</h2>
+        <div id="trend-wrap" class="trend-wrap"></div>
+      </div>
+    </section>
+  </div>
+</template>
+
+<template id="tpl-result-card">
+  <article class="result-card">
+    <div class="result-top">
+      <span class="category-badge">
+        <span class="dot"></span>
+        <span class="category-name"></span>
+      </span>
+      <div class="gauge-wrap">
+        <svg class="gauge" viewBox="0 0 120 70" aria-hidden="true">
+          <path class="gauge-track" d="M10 65 A50 50 0 0 1 110 65" fill="none" stroke-width="9" stroke-linecap="round"/>
+          <path class="gauge-value" d="M10 65 A50 50 0 0 1 110 65" fill="none" stroke-width="9" stroke-linecap="round"/>
+        </svg>
+        <div class="gauge-readout">
+          <span class="gauge-number"></span>
+          <span class="gauge-label">confidence</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="result-body">
+      <div class="result-block">
+        <p class="result-block-label">Extracted error line</p>
+        <p class="mono-line extracted-line"></p>
+      </div>
+      <div class="result-block">
+        <p class="result-block-label">Root cause summary</p>
+        <p class="summary-text"></p>
+      </div>
+      <div class="result-block">
+        <p class="result-block-label">Suggested action</p>
+        <p class="action-text"></p>
+      </div>
+      <div class="result-block unclassified-block" hidden>
+        <p class="result-block-label">Why unclassified</p>
+        <p class="unclassified-text"></p>
+      </div>
+    </div>
+
+    <details class="raw-details">
+      <summary>Full raw log</summary>
+      <pre class="mono-block raw-text"></pre>
+    </details>
+  </article>
+</template>
+
+<script src="/assets/app.js"></script>
+</body>
+</html>
