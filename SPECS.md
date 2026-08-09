@@ -45,6 +45,10 @@ depends on both) → Unit 4 (API) → Unit 5 (UI, depends on API).
       benchmark (5 logs x 5 categories) — that needs real API calls against
       curated sample logs and should be run separately, not as part of
       automated CI (cost + nondeterminism).
+- [x] Unit 3: live LLM pass — `pytest -m live` (10 tests) verified green
+      2026-08-09 against all 5 categories + schema + confidence rule.
+      Sample library grown to 45 logs so every category holds >= 5 samples
+      for the 5x5 benchmark (enforced by tests/test_sample_data.py).
 - [x] Unit 3: low-signal/garbage log → returns unclassified with non-empty reason
       (code-side rule covered in tests/test_classifier.py; real-LLM pass
       remains a manual, opt-in check — run with `pytest -m live`)

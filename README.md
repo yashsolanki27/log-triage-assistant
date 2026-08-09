@@ -23,7 +23,7 @@ Telecom support engineers spend hours manually reading logs, identifying error p
 - **Suggested Actions** — Actionable next steps for each classified error
 - **Classification History** — Browse, filter, and review all past triages
 - **Analytics Dashboard** — Category distribution donut chart, 14-day volume trend, aggregate stats
-- **39 Sample Logs** — Real-world OSS/BSS log samples across all 5 categories
+- **45 Sample Logs** — Real-world OSS/BSS log samples across all 5 categories
 - **RESTful API** — Full CRUD endpoints for integration with existing tooling
 - **Responsive Dark Theme** — Custom OLED dark theme with Space Grotesk / JetBrains Mono typography
 
@@ -123,7 +123,7 @@ log-triage-assistant/
 ├── app_pages/                  # Deprecated Streamlit pages
 │
 ├── data/
-│   ├── sample_logs.py          # 39 real-world OSS/BSS sample logs
+│   ├── sample_logs.py          # 45 real-world OSS/BSS sample logs
 │   └── triage.db               # SQLite database (auto-created, gitignored)
 │
 ├── docs/                       # Project documentation
@@ -132,7 +132,7 @@ log-triage-assistant/
 │   ├── patterns.md             # Coding conventions
 │   └── tech-stack.md           # Stack summary
 │
-├── tests/                      # Test suite (64 tests)
+├── tests/                      # Test suite (70 unit + 12 live, opt-in)
 │   ├── test_api.py             # API endpoint tests
 │   ├── test_classifier.py      # Classifier logic tests
 │   ├── test_db.py              # Storage layer tests
@@ -310,7 +310,7 @@ Returns aggregate statistics including total triaged count, unclassified rate, t
 
 ## Sample Logs
 
-39 real-world OSS/BSS log samples in `data/sample_logs.py`, sourced from:
+45 real-world OSS/BSS log samples in `data/sample_logs.py`, sourced from:
 - Telecom systems: ISAP, OFM, CDOT, Huawei
 - Azure AD / Microsoft 365 integration issues
 - Scenarios from BSNL 100M+ subscriber deployment

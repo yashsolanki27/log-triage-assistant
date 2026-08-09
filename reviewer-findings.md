@@ -67,7 +67,7 @@ Direct unit tests for the SQLite storage layer:
 - `test_get_stats_trend_sorted_by_day` — trend sorting
 - `test_save_triage_with_unclassified_reason` — unclassified reason storage
 
-### `tests/test_sample_data.py` — 9 tests (NEW file)
+### `tests/test_sample_data.py` — 12 tests (NEW file + expanded)
 Data integrity validation for `data/sample_logs.py`:
 - `test_categories_match_classifier_taxonomy` — taxonomy consistency
 - `test_sample_logs_is_non_empty_list` — non-empty
@@ -78,6 +78,9 @@ Data integrity validation for `data/sample_logs.py`:
 - `test_all_four_error_categories_represented` — all categories present
 - `test_no_duplicate_titles` — no duplicates
 - `test_minimum_log_length` — minimum 20 chars
+- `test_each_error_category_has_minimum_samples` — >= 5 per error category (keeps the 5x5 live benchmark runnable)
+- `test_unclassified_has_benchmark_samples` — unclassified >= 5
+- `test_tag_implies_consistent_category` — a tag never maps to contradicting categories
 
 ### `tests/test_api.py` — 3 new tests added
 - `test_sample_logs_returns_list` — endpoint returns list
@@ -92,14 +95,32 @@ Data integrity validation for `data/sample_logs.py`:
 |------|-------|--------|
 | `test_parser.py` | 10 | All pass |
 | `test_prompts.py` | 6 | All pass |
-| `test_classifier.py` | 9 | All pass |
+| `test_classifier.py` | 16 | All pass |
 | `test_api.py` | 14 | All pass |
 | `test_db.py` | 14 | All pass |
 | `test_integration.py` | 2 | All pass |
-| `test_sample_data.py` | 9 | All pass |
-| **Total** | **64** | **All pass** |
+| `test_sample_data.py` | 12 | All pass |
+| **Total** | **74** | **All pass** |
 
-10 live LLM tests excluded by default (requires `OPENCODE_API_KEY`).
+10 live LLM tests excluded by default (requires `OPENCODE_API_KEY`),
+run separately with `pytest -m live` — verified passing 2026-08-09.
+
+---
+
+## Latest finding (2026-08-09)
+
+### Finding 19: `unclassified_reason` could be null on unclassified results
+- **Was:** `_apply_confidence_rule` only guaranteed a non-empty reason when
+  confidence was below 70%. An LLM reply of `category=unclassified` with a
+  null reason (high confidence) was stored without any explanation —
+  contradicting patterns.md ("unclassified is a valid output, never a
+  silently hidden one").
+- **Fix:** `_apply_confidence_rule` now always ensures a non-empty
+  `unclassified_reason` for unclassified results, and prepends the
+  below-threshold note whenever a low-confidence reason is present.
+- **Regression tests:** `test_confidence_rule_unclassified_with_null_reason_gets_default`
+  (new); `test_confidence_rule_preserves_existing_unclassified_reason`
+  updated to assert the threshold note is included.
 
 ---
 

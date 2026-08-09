@@ -77,7 +77,7 @@ see `docs/business-logic.md`
 | LLM | OpenCode Zen (DeepSeek V4 Flash Free) | Single classification call |
 | Frontend | Vanilla HTML/CSS/JS SPA | `web/` — dark theme, no build step |
 | Storage | SQLite (stdlib) | `data/triage.db`, override via `TRIAGE_DB_PATH` |
-| Testing | pytest | 64 tests, all passing |
+| Testing | pytest | 82 tests, all passing (70 unit + 12 live, opt-in) |
 | Hosting | Railway | `railway.json` + `Procfile` |
 
 ### Environment variables
@@ -107,7 +107,7 @@ log-triage-assistant/
 │   └── app.js                    # Hash router + API calls + charts
 ├── data/
 │   ├── __init__.py
-│   ├── sample_logs.py            # 39 sample logs (single source of truth)
+│   ├── sample_logs.py            # 45 sample logs (single source of truth)
 │   └── triage.db                 # SQLite DB (auto-created, gitignored)
 ├── tests/
 │   ├── test_api.py               # API endpoint tests
@@ -249,7 +249,7 @@ python -m pytest tests/ -q
 
 ## Sample logs
 
-39 logs in `data/sample_logs.py`, sourced from:
+45 logs in `data/sample_logs.py`, sourced from:
 - Real telecom OSS/BSS error patterns (ISAP, OFM, CDOT, Huawei)
 - Scenarios from Yash Solanki's resume (BSNL 100M+ subscriber deployment)
 - Azure AD / M365 integration issues
