@@ -11,7 +11,7 @@ as reopened below).
 
 1. **Silent fallback (patterns.md violation)** — `_extract_error_line` Priority 4 returns the first non-empty line with no indicator that it's a fallback, so callers cannot distinguish a confident extraction from a guess (src/parser.py). Debt not bug: output is still a usable line; the problem is the "no silent fallback" rule from docs/patterns.md is unenforced. Suggested fix: return an `is_fallback` flag alongside the line (the 3bf400b fix added it, but the v2.0 rewrite dropped it — reopened).
 
-2. **No handling of binary/garbled input** — `parse_log` only rejects empty/whitespace text; embedded NUL bytes or non-UTF-8 sequences pass through with undefined behavior (src/parser.py). Debt not bug: an unvalidated encoding assumption, not a wrong result on valid input. Suggested fix: reject NUL bytes in `parse_log` and document the encoding assumption (was added at 3bf400b, dropped by the v2.0 rewrite — reopened).
+2. ~~**No handling of binary/garbled input**~~ — CLOSED: `parse_log` now rejects NUL bytes (`\x00`) with a `ValueError` (422 at the API), and the UTF-8 encoding assumption is documented in `parse_log`'s docstring and docs/tech-stack.md ("Input assumptions"). Regression tests `test_nul_bytes_raises` and `test_nul_bytes_only_raises` restored as a fence.
 
 3. ~~**Regex does not cover .NET-style `FaultException`**~~ — CLOSED: the Priority 1 regex `\b\w+(Exception|Error)\b` already matches `FaultException<Detail>`; `\w+` backtracks so `(Exception|Error)` matches `Exception`, and `\b` holds before `<`. Not debt. Regression test `test_parse_dotnet_fault_exception` was lost in the v2.0 rewrite — worth restoring as a fence.
 

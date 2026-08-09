@@ -57,6 +57,16 @@ def test_whitespace_only_log_raises():
         parse_log("   \n  \t  ")
 
 
+def test_nul_bytes_raises():
+    with pytest.raises(ValueError, match="binary data"):
+        parse_log("ERROR something\x00went wrong")
+
+
+def test_nul_bytes_only_raises():
+    with pytest.raises(ValueError, match="binary data"):
+        parse_log("\x00\x00\x00")
+
+
 def test_single_line_log():
     result = parse_log("ERROR something went wrong")
     assert result["extracted_error_line"] == "ERROR something went wrong"

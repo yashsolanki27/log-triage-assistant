@@ -14,15 +14,22 @@ def parse_log(raw_text: str) -> dict:
 
     Args:
         raw_text: Raw pasted log text (single entry, possibly multi-line).
+            Must be valid Unicode text (log input is assumed to be UTF-8
+            encoded). Input containing NUL bytes (\\x00) — a sign of binary
+            or garbled data — is rejected.
 
     Returns:
         Dict with keys: raw_text (cleaned), extracted_error_line.
 
     Raises:
-        ValueError: If raw_text is empty or contains no content.
+        ValueError: If raw_text is empty, contains no content,
+            or contains binary data (NUL bytes).
     """
     if not raw_text or not raw_text.strip():
         raise ValueError("raw_text must be non-empty")
+
+    if "\x00" in raw_text:
+        raise ValueError("raw_text contains binary data (NUL bytes)")
 
     cleaned = raw_text.strip()
     error_line = _extract_error_line(cleaned)

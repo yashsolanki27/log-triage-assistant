@@ -9,6 +9,13 @@
 - Testing: pytest (live LLM tests excluded by default via `-m "not live"`)
 - Hosting: Railway (railway.json + Procfile), health check at /health
 
+## Input assumptions
+
+- Log input to `parse_log` (and `POST /triage`) is assumed to be valid Unicode
+  text (UTF-8 decoded). The parser rejects NUL bytes (`\x00`) — a marker of
+  binary/garbled data — with a 422 `ValueError`; other non-UTF-8 sequences are
+  filtered upstream by the JSON decoder.
+
 ## Environment variables
 
 | Variable           | Default                         | Required |
