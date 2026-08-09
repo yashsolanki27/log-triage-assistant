@@ -23,10 +23,10 @@ Storage layer: src/db.py (SQLite, defaults to data/triage.db)
 
 | Method | Path          | Purpose                                   |
 |--------|---------------|-------------------------------------------|
-| POST   | /triage       | Classify a log entry                      |
+| POST   | /triage       | Classify a log entry (1-20000 chars)      |
 | GET    | /history      | List past triages (filter, paginate)      |
 | GET    | /triage/{id}  | Single triage by ID                       |
 | GET    | /stats        | Dashboard aggregates                      |
 | GET    | /sample-logs  | Sample logs from data/sample_logs.py      |
-| GET    | /health       | Liveness probe (used by Railway)          |
+| GET    | /health       | Liveness probe — status, version, db_path |
 | GET    | /             | SPA frontend (index.html)                 |

@@ -93,7 +93,7 @@ Telecom support engineers spend hours manually reading logs, identifying error p
 ## Screens
 
 ### 1. Triage
-Paste a raw log entry, click "Classify", and instantly see the detected category (with animated confidence gauge), root cause summary, suggested action, and unclassified reason (if applicable). Supports loading sample logs for quick testing.
+Paste a raw log entry, click "Classify", and instantly see the detected category (with animated confidence gauge), root cause summary, suggested action, and unclassified reason (if applicable). Supports loading sample logs for quick testing. Keyboard: `Ctrl/Cmd+Enter` submits, `Esc` closes the sample-log panel.
 
 ### 2. History
 Browse every past triage result. Filter by category. Click any entry to expand the full classification card with all details.
@@ -262,7 +262,7 @@ pytest tests/ -m "live" -v
 | `GET` | `/history` | List past triages (filterable, paginated) |
 | `GET` | `/triage/{id}` | Get a single triage by ID |
 | `GET` | `/stats` | Dashboard aggregate statistics |
-| `GET` | `/health` | Health check |
+| `GET` | `/health` | Health check (status, version, db_path) |
 
 ### POST /triage
 
@@ -285,7 +285,7 @@ pytest tests/ -m "live" -v
 ```
 
 **Error Responses:**
-- `422` — Validation error (missing or invalid `log_text`)
+- `422` — Validation error (missing or invalid `log_text`, or longer than 20000 chars)
 - `500` — Classifier runtime error or missing API key
 
 ### GET /history?category=next-tache-error&limit=20&offset=0
