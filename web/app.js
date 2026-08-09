@@ -156,6 +156,12 @@ java.lang.NullPointerException: Cannot invoke method getStatus() on null object
       charCount.textContent = `${textarea.value.length} characters`;
     });
 
+    textarea.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+        form.requestSubmit();
+      }
+    });
+
     document.getElementById("btn-sample").addEventListener("click", () => {
       textarea.value = SAMPLE_LOG;
       textarea.dispatchEvent(new Event("input"));
@@ -571,6 +577,15 @@ java.lang.NullPointerException: Cannot invoke method getStatus() on null object
   document.getElementById("btn-close-samples").addEventListener("click", () => {
     const panel = document.getElementById("sample-logs-panel");
     if (panel) panel.hidden = true;
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    const panel = document.getElementById("sample-logs-panel");
+    if (panel && !panel.hidden) {
+      panel.hidden = true;
+      e.stopPropagation();
+    }
   });
 
   document.getElementById("sample-search").addEventListener("input", filterAndRenderSamples);
