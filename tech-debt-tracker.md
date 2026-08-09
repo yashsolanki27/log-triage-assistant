@@ -37,7 +37,13 @@ as reopened below).
 
 ## Cross-cutting / Documentation
 
-9. **`docs/business-logic.md` category descriptions are terse** — Each category has a one-line description with no examples of what it looks like in practice, which makes classification quality hard to verify (docs/business-logic.md, mirrored in src/prompts.py). Debt not bug: documentation gap, not a code defect. Suggested fix: expand each category with signal keywords, distinguishing features, and example log lines (was done at 3bf400b, reverted by the v2.0 rewrite — reopened).
+9. ~~**`docs/business-logic.md` category descriptions are terse**~~ — CLOSED: each
+   category in docs/business-logic.md now carries signal keywords, distinguishing
+   features, and real example log lines drawn from data/sample_logs.py; the same
+   expanded taxonomy is mirrored into the classification prompt (src/prompts.py).
+   Regression tests `test_prompt_taxonomy_has_signal_keywords_for_every_category`,
+   `test_prompt_taxonomy_has_example_log_line_for_every_category`, and
+   `test_business_logic_doc_mirrors_prompt_taxonomy` restored/added as a fence.
 
 10. ~~**No integration test with real LLM**~~ — CLOSED: `tests/test_live_llm.py` (10 tests, `-m live`) now exercises the real OpenAI-compatible endpoint; excluded from default CI by design. Not debt.
 
