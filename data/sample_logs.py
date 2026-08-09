@@ -487,4 +487,86 @@ SAMPLE_LOGS = [
             "Module: Azure AD."
         ),
     },
+
+    # =====================================================================
+    # next-tache-error  (task sequencing) — added 2026-08-09
+    # =====================================================================
+    {
+        "title": "O2A order skipped prerequisite task (billing)",
+        "category": "next-tache-error",
+        "tag": "next-tache-error",
+        "log": (
+            "2026-07-15 09:12:00 ERROR [OrderEngine] "
+            "Order ORD-81203 Next Tache error: task START_BILLING "
+            "started before prerequisite CREATE_ACCOUNT completed. "
+            "Tache sequence broken at step 4/8. Order halted in O2A "
+            "pipeline. Subscriber: 98XXXXXXXX. Module: BILLING."
+        ),
+    },
+    {
+        "title": "O2A order skipped prerequisite task (provisioning)",
+        "category": "next-tache-error",
+        "tag": "next-tache-error",
+        "log": (
+            "2026-07-16 22:40:00 ERROR [OrderEngine] "
+            "Order ORD-81577 Next Tache error: task ACTIVATE_SERVICE "
+            "started before prerequisite ASSIGN_PORT completed. "
+            "Tache sequence broken at step 5/9. Order halted in O2A "
+            "pipeline. Subscriber: 98XXXXXXXX. Module: BBNW."
+        ),
+    },
+    {
+        "title": "O2A order skipped prerequisite task (migration)",
+        "category": "next-tache-error",
+        "tag": "next-tache-error",
+        "log": (
+            "2026-07-17 14:03:00 ERROR [OrderEngine] "
+            "Order ORD-82019 Next Tache error: task MIGRATE_LINE "
+            "started before prerequisite VALIDATE_ADDRESS completed. "
+            "Tache sequence broken at step 6/10. Order halted in O2A "
+            "pipeline. Subscriber: 98XXXXXXXX. Module: MIGRATION."
+        ),
+    },
+
+    # =====================================================================
+    # state-transition-block  — added 2026-08-09
+    # =====================================================================
+    {
+        "title": "Order stuck in PARTIAL_COMPLETED state",
+        "category": "state-transition-block",
+        "tag": "collab-wait-timeout",
+        "log": (
+            "2026-07-18 08:20:00 WARN [WorkflowEngine] "
+            "Order ORD-82301 stuck in state PARTIAL_COMPLETED for 36h. "
+            "No valid transition found for event PROVISION_OK. "
+            "CollaborationWaitFailure: provisioning service unreachable. "
+            "Module: O2A."
+        ),
+    },
+
+    # =====================================================================
+    # unclassified  — added 2026-08-09
+    # =====================================================================
+    {
+        "title": "Cron backup completed with warnings",
+        "category": "unclassified",
+        "tag": "backup-warn",
+        "log": (
+            "2026-07-19 02:30:00 WARN [BackupAgent] "
+            "nightly backup of NMS database completed with 3 warnings: "
+            "2 tables checkpointed slowly, 1 index rebuilt. "
+            "Duration 14m20s. No action required. Module: NMS."
+        ),
+    },
+    {
+        "title": "Stateless informational log — load balancer ping",
+        "category": "unclassified",
+        "tag": "loadbalancer-ping",
+        "log": (
+            "2026-07-19 04:15:00 INFO [LoadBalancer] "
+            "Health ping received from node lb-01, response 2ms. "
+            "Backend pool at 61% capacity. Nothing actionable. "
+            "Module: LB."
+        ),
+    },
 ]
