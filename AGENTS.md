@@ -24,6 +24,9 @@ and suggests likely root causes — automating manual RCA triage work.
 
 ## Memory rules
 
+- At the end of each reviewer pass, review learnings.md and promote durable
+  lessons into docs/ (patterns, business-logic, tech-stack) before starting
+  the next unit or task. (learnings schedule)
 - One task, one fresh chat. Never continue a long chat past its task. (Tip 8)
 - Never let the agent auto-compact context — start fresh instead. (Tip 8)
 - Heavy research (multi-file/multi-source digging) → spawn a helper agent.

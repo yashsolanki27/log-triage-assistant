@@ -2,7 +2,8 @@
 # run-loop.sh — Process tech-debt items one at a time via agent.
 # Usage: ./run-loop.sh [--dry-run] [AGENT_CMD]
 #   --dry-run:    test stop conditions with a mock agent (no real calls)
-#   AGENT_CMD:    command to run per item (default: "echo TODO: implement agent")
+#   AGENT_CMD:    command to run per item (default: run_agent -> `opencode run`)
+#                 receives "$item_number" "$item_description" as arguments
 # Stops when: all items done, or 3 consecutive failures (writes blocked.md).
 set -euo pipefail
 
@@ -24,7 +25,7 @@ done
 if $DRY_RUN; then
     AGENT_CMD="${AGENT_CMD:-exit 1}"
 elif [[ -z "$AGENT_CMD" ]]; then
-    AGENT_CMD="echo TODO: implement agent for item"
+    AGENT_CMD="run_agent"
 fi
 
 mkdir -p "$STATE_DIR" "$LOGS_DIR"
@@ -78,6 +79,45 @@ item_description() {
     sed -n "/^${num}\. /p" "$ITEMS_FILE" | head -1
 }
 
+# --- Real agent (default AGENT_CMD) -------------------------------------------
+# Runs `opencode run` in a FRESH context per item (no --continue/--session), so
+# no chat state leaks between items. The agent is told to implement the fix,
+# update docs if needed, and commit with a Tip 10 message. Success is verified
+# by a clean working tree afterwards; a dirty tree (uncommitted work) counts as
+# failure so the loop's stop-on-3-failures logic triggers.
+#   $1: item number from tech-debt-tracker.md
+#   $2: item description line
+run_agent() {
+    local item_num="$1"
+    local desc="$2"
+    local prompt
+    prompt=$(cat <<PROMPT_EOF
+You are working tech-debt item #${item_num} from tech-debt-tracker.md in this repo.
+
+Item: ${desc}
+
+Follow AGENTS.md (read it first — routing table, Tip 7, Tip 10, Tip 11 apply):
+1. Read tech-debt-tracker.md item #${item_num} and implement the described fix.
+2. Add or update a regression test for the fix (Tip 11).
+3. If the change touches categories/endpoints/dependencies/code-style, update
+   the matching docs/ file (Tip 7).
+4. Run the test suite: \`pytest tests/ -q\`.
+5. Commit with a detailed message — what, why, order (Tip 10).
+
+When done, the repo must be clean (all work committed). If you cannot complete
+the item, report clearly and do NOT fake it — leave the tree as you found it.
+PROMPT_EOF
+)
+    opencode run --auto --title "tech-debt item ${item_num}" "$prompt"
+
+    # Success = the agent committed its work; a dirty tree means it didn't finish.
+    if [[ -n "$(git status --porcelain)" ]]; then
+        echo "run_agent: uncommitted changes remain after item ${item_num} — treating as failure" >&2
+        return 1
+    fi
+    return 0
+}
+
 # --- Dry-run test agent -------------------------------------------------------
 # Simulates N failures then success, to verify stop/resume logic.
 dry_run_agent() {
@@ -129,10 +169,18 @@ while true; do
     set +e
     if $DRY_RUN; then
         ( dry_run_agent "$next_item" ) > "$log_file" 2>&1
+        exit_code=$?
     else
         $AGENT_CMD "$next_item" "$desc" > "$log_file" 2>&1
+        agent_exit=$?
+        if [[ $agent_exit -ne 0 ]]; then
+            exit_code=$agent_exit
+        elif [[ -n "$(git status --porcelain)" ]]; then
+            exit_code=1   # agent claims success but left dirty tree — suspicious
+        else
+            exit_code=0
+        fi
     fi
-    exit_code=$?
     set -e
 
     echo "Exit code: $exit_code" | tee -a "$log_file"
