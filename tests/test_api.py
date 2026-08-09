@@ -63,6 +63,16 @@ def test_triage_missing_field_returns_422(client):
     assert r.status_code == 422
 
 
+def test_triage_log_too_long_returns_422(client):
+    r = client.post("/triage", json={"log_text": "ERROR " + "x" * 20000})
+    assert r.status_code == 422
+
+
+def test_triage_log_at_max_length_ok(client):
+    r = client.post("/triage", json={"log_text": "x" * 20000})
+    assert r.status_code == 200, r.text
+
+
 def test_history_returns_saved_triages(client):
     client.post("/triage", json={"log_text": "ERROR one"})
     client.post("/triage", json={"log_text": "ERROR two"})

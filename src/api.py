@@ -52,7 +52,12 @@ class SampleLog(BaseModel):
 
 
 class TriageRequest(BaseModel):
-    log_text: str = Field(..., min_length=1, description="Raw pasted log text")
+    log_text: str = Field(
+        ...,
+        min_length=1,
+        max_length=20000,
+        description="Raw pasted log text (1-20000 chars)",
+    )
 
 
 class TriageResult(BaseModel):
