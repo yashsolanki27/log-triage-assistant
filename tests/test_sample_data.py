@@ -61,3 +61,37 @@ def test_minimum_log_length():
         assert len(entry["log"]) >= 20, (
             f"Log too short ({len(entry['log'])} chars) in '{entry['title']}'"
         )
+
+
+def test_each_error_category_has_minimum_samples():
+    """Every error category needs enough samples for a meaningful live-LLM
+    benchmark (the 25-case test: 5 logs x 5 categories)."""
+    min_per_category = 5
+    from collections import Counter
+
+    counts = Counter(e["category"] for e in SAMPLE_LOGS)
+    for cat in VALID_CATEGORIES - {"unclassified"}:
+        assert counts[cat] >= min_per_category, (
+            f"Category '{cat}' has only {counts[cat]} samples; "
+            f"need at least {min_per_category}"
+        )
+
+
+def test_unclassified_has_benchmark_samples():
+    """unclassified also needs the same minimum so the 5x5 benchmark holds."""
+    from collections import Counter
+
+    counts = Counter(e["category"] for e in SAMPLE_LOGS)
+    assert counts["unclassified"] >= 5, (
+        f"Category 'unclassified' has only {counts['unclassified']} samples"
+    )
+
+
+def test_tag_implies_consistent_category():
+    """A given error tag must not map to contradicting categories."""
+    mapping = {}
+    for entry in SAMPLE_LOGS:
+        prev = mapping.setdefault(entry["tag"], entry["category"])
+        assert prev == entry["category"], (
+            f"Tag '{entry['tag']}' maps to both '{prev}' and '{entry['category']}'"
+        )
