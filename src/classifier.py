@@ -164,6 +164,11 @@ def _apply_confidence_rule(result: dict) -> dict:
     <70% confidence must always surface as unclassified with a reason —
     this is not something we trust the model to self-police (patterns.md:
     unclassified is a valid output, never a silently hidden one).
+
+    Guarantees (regardless of what the LLM returned):
+      - low confidence (<70) forces category=unclassified
+      - the unclassified_reason always explains the below-threshold note
+      - category=unclassified always carries a non-empty reason
     """
     category = result.get("category")
     confidence = result.get("confidence")
@@ -179,10 +184,19 @@ def _apply_confidence_rule(result: dict) -> dict:
     if isinstance(confidence, (int, float)) and confidence < CONFIDENCE_THRESHOLD:
         if category != "unclassified":
             result["category"] = "unclassified"
-        if not result.get("unclassified_reason"):
-            result["unclassified_reason"] = (
-                f"Confidence {confidence} is below the {CONFIDENCE_THRESHOLD}% threshold."
-            )
+        threshold_note = (
+            f"Confidence {confidence} is below the {CONFIDENCE_THRESHOLD}% threshold."
+        )
+        reason = result.get("unclassified_reason") or ""
+        if not reason:
+            result["unclassified_reason"] = threshold_note
+        elif "below" not in reason.lower():
+            result["unclassified_reason"] = f"{threshold_note} {reason}"
+
+    if result["category"] == "unclassified" and not result.get("unclassified_reason"):
+        result["unclassified_reason"] = (
+            "No taxonomy category confidently matched; flag for human review."
+        )
 
     if result["category"] != "unclassified":
         result["unclassified_reason"] = None

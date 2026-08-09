@@ -85,7 +85,18 @@ def test_confidence_rule_preserves_existing_unclassified_reason():
             "unclassified_reason": "Log too sparse to classify.",
         }
     )
-    assert result["unclassified_reason"] == "Log too sparse to classify."
+    assert "Log too sparse to classify." in result["unclassified_reason"]
+    assert "below" in result["unclassified_reason"]
+
+
+def test_confidence_rule_unclassified_with_null_reason_gets_default():
+    """unclassified must always carry a non-empty reason — even if the LLM
+    returns category=unclassified with a null reason at high confidence."""
+    result = _apply_confidence_rule(
+        {"category": "unclassified", "confidence": 85, "unclassified_reason": None}
+    )
+    assert result["category"] == "unclassified"
+    assert result["unclassified_reason"]
 
 
 # ---------------------------------------------------------------------------
