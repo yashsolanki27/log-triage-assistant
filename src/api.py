@@ -34,7 +34,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="Log Triage Assistant API", version="1.1.0", lifespan=lifespan)
+app = FastAPI(title="LogPulse API", version="1.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -42,6 +42,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class SampleLog(BaseModel):
+    title: str
+    category: str
+    tag: str
+    log_text: str
 
 
 class TriageRequest(BaseModel):
@@ -102,6 +109,22 @@ def stats():
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/sample-logs", response_model=list[SampleLog])
+def sample_logs():
+    """Return all sample logs from data/sample_logs.py (single source of truth)."""
+    from data.sample_logs import SAMPLE_LOGS
+
+    return [
+        SampleLog(
+            title=entry["title"],
+            category=entry["category"],
+            tag=entry["tag"],
+            log_text=entry["log"],
+        )
+        for entry in SAMPLE_LOGS
+    ]
 
 
 # --- Static frontend ---------------------------------------------------

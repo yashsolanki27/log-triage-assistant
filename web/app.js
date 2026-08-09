@@ -162,6 +162,10 @@ java.lang.NullPointerException: Cannot invoke method getStatus() on null object
       textarea.focus();
     });
 
+    document.getElementById("btn-browse-samples").addEventListener("click", () => {
+      toggleSampleLogs();
+    });
+
     document.getElementById("btn-clear").addEventListener("click", () => {
       textarea.value = "";
       textarea.dispatchEvent(new Event("input"));
@@ -196,8 +200,8 @@ java.lang.NullPointerException: Cannot invoke method getStatus() on null object
 
   function describeError(err) {
     const msg = err && err.message ? err.message : "Something went wrong.";
-    if (msg.includes("ANTHROPIC_API_KEY")) {
-      return "The classifier isn't configured yet — set ANTHROPIC_API_KEY on the server and restart the API.";
+    if (msg.includes("OPENCODE_API_KEY")) {
+      return "The classifier isn't configured yet — set OPENCODE_API_KEY on the server and restart the API.";
     }
     if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
       return "Couldn't reach the API. Confirm the backend is running.";
@@ -438,6 +442,124 @@ java.lang.NullPointerException: Cannot invoke method getStatus() on null object
   }
 
   // ---------------------------------------------------------------------
+  // Sample Logs (inline panel)
+  // ---------------------------------------------------------------------
+
+  let allSampleLogs = [];
+  let sampleFilter = "";
+
+  async function toggleSampleLogs() {
+    const panel = document.getElementById("sample-logs-panel");
+    if (!panel) return;
+
+    if (!panel.hidden) {
+      panel.hidden = true;
+      return;
+    }
+
+    panel.hidden = false;
+    const list = document.getElementById("sample-logs-list");
+    const empty = document.getElementById("sample-logs-empty");
+    list.innerHTML = `<p class="field-hint">Loading sample logs...</p>`;
+    empty.hidden = true;
+
+    try {
+      if (!allSampleLogs.length) {
+        allSampleLogs = await apiGet("/sample-logs");
+      }
+      renderSampleLogsList(allSampleLogs);
+      buildTagFilters(allSampleLogs);
+    } catch (err) {
+      list.innerHTML = `<div class="alert alert-error">${escapeHtml(describeError(err))}</div>`;
+    }
+
+    const searchInput = document.getElementById("sample-search");
+    if (searchInput) searchInput.value = "";
+    sampleFilter = "";
+  }
+
+  function buildTagFilters(logs) {
+    const tags = [...new Set(logs.map((l) => l.tag))].sort();
+    const container = document.getElementById("sample-tag-filters");
+    if (!container) return;
+    container.innerHTML = `<button class="chip is-active" data-tag="">All</button>`;
+    tags.forEach((tag) => {
+      const btn = document.createElement("button");
+      btn.className = "chip";
+      btn.dataset.tag = tag;
+      btn.textContent = tag.replace(/-/g, " ");
+      container.appendChild(btn);
+    });
+    container.querySelectorAll(".chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        container.querySelectorAll(".chip").forEach((c) => c.classList.remove("is-active"));
+        chip.classList.add("is-active");
+        sampleFilter = chip.dataset.tag;
+        filterAndRenderSamples();
+      });
+    });
+  }
+
+  function filterAndRenderSamples() {
+    const searchInput = document.getElementById("sample-search");
+    const search = searchInput ? searchInput.value.toLowerCase() : "";
+    let filtered = allSampleLogs;
+    if (sampleFilter) {
+      filtered = filtered.filter((l) => l.tag === sampleFilter);
+    }
+    if (search) {
+      filtered = filtered.filter(
+        (l) =>
+          l.title.toLowerCase().includes(search) ||
+          l.tag.toLowerCase().includes(search)
+      );
+    }
+    renderSampleLogsList(filtered);
+  }
+
+  function renderSampleLogsList(logs) {
+    const list = document.getElementById("sample-logs-list");
+    const empty = document.getElementById("sample-logs-empty");
+    if (!list) return;
+    list.innerHTML = "";
+
+    if (!logs.length) {
+      empty.hidden = false;
+      return;
+    }
+    empty.hidden = true;
+
+    logs.forEach((log) => {
+      const el = document.createElement("div");
+      el.className = "sample-log-item";
+      el.innerHTML = `
+        <div class="sample-log-header">
+          <span class="sample-log-title">${escapeHtml(log.title)}</span>
+          <span class="sample-log-tag chip chip-sm">${escapeHtml(log.tag)}</span>
+        </div>
+        <pre class="sample-log-preview">${escapeHtml(log.log_text.substring(0, 150))}${log.log_text.length > 150 ? "..." : ""}</pre>
+      `;
+      el.addEventListener("click", () => {
+        loadSampleLog(log);
+      });
+      list.appendChild(el);
+    });
+  }
+
+  function loadSampleLog(log) {
+    const textarea = document.getElementById("log-input");
+    const charCount = document.getElementById("char-count");
+    const panel = document.getElementById("sample-logs-panel");
+    if (textarea) {
+      textarea.value = log.log_text;
+      textarea.dispatchEvent(new Event("input"));
+      if (charCount) charCount.textContent = `${log.log_text.length} characters`;
+    }
+    if (panel) panel.hidden = true;
+    if (textarea) textarea.focus();
+  }
+
+  // ---------------------------------------------------------------------
   // Init
   // ---------------------------------------------------------------------
 
@@ -445,4 +567,11 @@ java.lang.NullPointerException: Cannot invoke method getStatus() on null object
     window.location.hash = "/triage";
   }
   renderRoute();
+
+  document.getElementById("btn-close-samples").addEventListener("click", () => {
+    const panel = document.getElementById("sample-logs-panel");
+    if (panel) panel.hidden = true;
+  });
+
+  document.getElementById("sample-search").addEventListener("input", filterAndRenderSamples);
 })();

@@ -1,4 +1,4 @@
-# Log Triage Assistant
+# LogPulse
 
 An AI-powered OSS/BSS log classification tool that automates root cause analysis for telecom application support engineers. Paste a raw log excerpt, get an instant classification with confidence scoring, root cause summary, and suggested next action.
 
@@ -10,13 +10,14 @@ Built with **FastAPI**, **OpenAI-compatible LLM (DeepSeek V4 Flash)**, **SQLite*
 
 Telecom support engineers spend hours manually reading logs, identifying error patterns, and determining next steps. This tool eliminates that bottleneck — paste a log, get an instant triage result backed by an LLM classification pipeline.
 
-**Target Users:** Telecom / OSS-BSS application support engineers working with order processing, provisioning, and API integration systems (Zsmart, ISAP, OFM, Huawei, Azure AD).
+**Target Users:** Telecom / OSS-BSS application support engineers working with order processing, provisioning, and API integration systems (ISAP, OFM, Huawei, Azure AD).
 
 ---
 
 ## Features
 
 - **LLM-Powered Classification** — Classifies logs against a 5-category error taxonomy using an LLM
+- **Multi-Key Failover** — Set `OPENCODE_API_KEY=key1,key2,key3`; blocked or rate-limited keys auto-swap to the next one
 - **Confidence Scoring** — Every result includes a confidence percentage with a hard <70% safety threshold
 - **Root Cause Analysis** — Plain English explanation of what went wrong
 - **Suggested Actions** — Actionable next steps for each classified error
@@ -71,10 +72,8 @@ Telecom support engineers spend hours manually reading logs, identifying error p
 | Data Validation | Pydantic | >= 2.8 |
 | Database | SQLite3 | stdlib |
 | Frontend | Vanilla HTML / CSS / JavaScript | ES6+ |
-| Alternative UI | Streamlit | >= 1.24 |
-| HTTP Client | Requests | >= 2.31 |
+| HTTP Client | httpx (test client) | >= 0.27 |
 | Testing | pytest | >= 8.0 |
-| HTTP Test Client | httpx | >= 0.27 |
 | Fonts | Google Fonts — Space Grotesk, Inter, JetBrains Mono | — |
 
 ---
@@ -116,17 +115,16 @@ log-triage-assistant/
 │   └── prompts.py              # LLM prompt templates
 │
 ├── web/                        # Frontend (vanilla SPA)
-│   ├── index.html              # Single-page app HTML
-│   ├── styles.css              # Custom CSS (900+ lines, design tokens)
-│   └── app.js                  # Client-side router + API calls
+│   ├── index.html              # Single-page app HTML + templates
+│   ├── styles.css              # Custom CSS (design tokens, dark theme)
+│   └── app.js                  # Client-side router + API calls + charts
 │
-├── app_pages/                  # Streamlit multi-page app (alternative UI)
-│   ├── triage.py               # Analyze logs page
-│   └── logs_list.py            # Sample logs page
+├── streamlit_app.py            # Deprecated Streamlit entry (alternative UI)
+├── app_pages/                  # Deprecated Streamlit pages
 │
 ├── data/
 │   ├── sample_logs.py          # 39 real-world OSS/BSS sample logs
-│   └── triage.db               # SQLite database (auto-created)
+│   └── triage.db               # SQLite database (auto-created, gitignored)
 │
 ├── docs/                       # Project documentation
 │   ├── architecture.md         # Data flow diagram
@@ -134,19 +132,21 @@ log-triage-assistant/
 │   ├── patterns.md             # Coding conventions
 │   └── tech-stack.md           # Stack summary
 │
-├── tests/                      # Test suite (~45 tests)
-│   ├── test_api.py             # API endpoint tests (11 tests)
-│   ├── test_classifier.py      # Classifier logic tests (8 tests)
+├── tests/                      # Test suite (64 tests)
+│   ├── test_api.py             # API endpoint tests
+│   ├── test_classifier.py      # Classifier logic tests
+│   ├── test_db.py              # Storage layer tests
 │   ├── test_integration.py     # Full pipeline integration tests
-│   ├── test_parser.py          # Parser unit tests (10 tests)
-│   ├── test_prompts.py         # Prompt template tests (6 tests)
+│   ├── test_parser.py          # Parser unit tests
+│   ├── test_prompts.py         # Prompt template tests
+│   ├── test_sample_data.py     # Sample log data integrity tests
 │   └── test_live_llm.py        # Live LLM tests (excluded by default)
 │
-├── streamlit_app.py            # Streamlit entry point
-├── .streamlit/config.toml      # Dark OLED theme config
+├── Procfile                    # Railway process definition
+├── railway.json                # Railway deploy config
+├── .env.example                # Environment variable template
 ├── requirements.txt            # Python dependencies
 ├── pytest.ini                  # Pytest configuration
-├── .env.example                # Environment variable template
 ├── PROJECT.md                  # Full project specification
 ├── SPECS.md                    # Build units checklist
 └── AGENTS.md                   # AI agent instructions
@@ -186,6 +186,8 @@ cp .env.example .env
 
 # Edit .env and add your API key
 OPENCODE_API_KEY=your_api_key_here
+# For automatic failover, add multiple comma-separated keys:
+# OPENCODE_API_KEY=key1,key2,key3
 ```
 
 | Variable | Default | Required |
@@ -193,6 +195,7 @@ OPENCODE_API_KEY=your_api_key_here
 | `OPENCODE_API_KEY` | — | Yes (falls back to `OPENAI_API_KEY`) |
 | `OPENCODE_BASE_URL` | `https://opencode.ai/zen/v1` | No |
 | `LLM_MODEL_NAME` | `deepseek-v4-flash-free` | No |
+| `TRIAGE_DB_PATH` | `./data/triage.db` | No |
 
 ---
 
@@ -207,7 +210,7 @@ uvicorn src.api:app --reload
 
 Open **http://localhost:8000** — the frontend is served from the same process.
 
-### Alternative Mode (Streamlit UI)
+### Alternative Mode (Streamlit UI — deprecated)
 
 ```bash
 # Terminal 1 — Backend
@@ -218,6 +221,19 @@ streamlit run streamlit_app.py --server.port 8501
 ```
 
 Open **http://localhost:8501**
+
+### Deploy to Railway
+
+The repo ships with `Procfile` and `railway.json`:
+
+1. Push to GitHub, then create a Railway project from the repo.
+2. Set env vars: `OPENCODE_API_KEY` (required), optionally
+   `OPENCODE_BASE_URL` and `LLM_MODEL_NAME`.
+3. Recommended: attach a volume and set `TRIAGE_DB_PATH=/data/triage.db`
+   so triage history survives restarts.
+4. Railway auto-detects the start command
+   (`uvicorn src.api:app --host 0.0.0.0 --port $PORT`) and uses `/health`
+   as the liveness check.
 
 ---
 
@@ -253,7 +269,7 @@ pytest tests/ -m "live" -v
 **Request:**
 ```json
 {
-  "log_text": "2024-01-15 10:23:45 ERROR [TaskExecutor] NullPointerException at com.zsmart.task.NextTaskValidator.validate(NextTaskValidator.java:142)"
+  "log_text": "2024-01-15 10:23:45 ERROR [TaskExecutor] NullPointerException at com.order.NextTaskValidator.validate(NextTaskValidator.java:142)"
 }
 ```
 
@@ -263,7 +279,7 @@ pytest tests/ -m "live" -v
   "category": "next-tache-error",
   "root_cause_summary": "A NullPointerException occurred in the NextTaskValidator, indicating a task was started before its prerequisite completed successfully.",
   "confidence": 85,
-  "suggested_action": "Check the task dependency chain in Zsmart and ensure all prerequisite tasks are marked complete before triggering the next task.",
+  "suggested_action": "Check the task dependency chain in the order management system and ensure all prerequisite tasks are marked complete before triggering the next task.",
   "unclassified_reason": null
 }
 ```
@@ -295,7 +311,7 @@ Returns aggregate statistics including total triaged count, unclassified rate, t
 ## Sample Logs
 
 39 real-world OSS/BSS log samples in `data/sample_logs.py`, sourced from:
-- Telecom systems: Zsmart, ISAP, OFM, CDOT, Huawei
+- Telecom systems: ISAP, OFM, CDOT, Huawei
 - Azure AD / Microsoft 365 integration issues
 - Scenarios from BSNL 100M+ subscriber deployment
 

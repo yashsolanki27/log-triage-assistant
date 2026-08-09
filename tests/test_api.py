@@ -1,6 +1,6 @@
 """Tests for src/api.py — Unit 4 API layer.
 
-Uses a mocked classifier so these run without ANTHROPIC_API_KEY or network
+Uses a mocked classifier so these run without OPENCODE_API_KEY or network
 access, and against a scratch SQLite DB so they don't pollute real data.
 """
 
@@ -106,7 +106,7 @@ def test_stats_shape(client):
 def test_frontend_served_at_root(client):
     r = client.get("/")
     assert r.status_code == 200
-    assert "Log Triage Assistant" in r.text
+    assert "LogPulse" in r.text
 
 
 def test_static_assets_served(client):
@@ -114,3 +114,41 @@ def test_static_assets_served(client):
     assert r.status_code == 200
     r = client.get("/assets/app.js")
     assert r.status_code == 200
+
+
+def test_sample_logs_returns_list(client):
+    r = client.get("/sample-logs")
+    assert r.status_code == 200
+    data = r.json()
+    assert isinstance(data, list)
+    assert len(data) > 0
+    first = data[0]
+    assert "title" in first
+    assert "category" in first
+    assert "tag" in first
+    assert "log_text" in first
+    assert isinstance(first["title"], str)
+    assert isinstance(first["log_text"], str)
+    assert len(first["log_text"]) > 0
+
+
+def test_sample_logs_has_all_entries(client):
+    from data.sample_logs import SAMPLE_LOGS
+
+    r = client.get("/sample-logs")
+    data = r.json()
+    assert len(data) == len(SAMPLE_LOGS)
+
+
+def test_sample_logs_entries_have_valid_fields(client):
+    from src.classifier import VALID_CATEGORIES
+
+    r = client.get("/sample-logs")
+    data = r.json()
+    for entry in data:
+        assert entry["title"], f"Empty title in entry: {entry}"
+        assert entry["tag"], f"Empty tag in entry: {entry['title']}"
+        assert entry["log_text"], f"Empty log_text in entry: {entry['title']}"
+        assert entry["category"] in VALID_CATEGORIES, (
+            f"Invalid category in entry: {entry['title']}"
+        )

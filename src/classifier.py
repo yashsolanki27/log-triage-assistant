@@ -12,9 +12,12 @@ import json
 import os
 import re
 
-from openai import OpenAI
+from dotenv import load_dotenv
+from openai import AuthenticationError, OpenAI, RateLimitError
 
 from src.prompts import build_classification_prompt
+
+load_dotenv()
 
 VALID_CATEGORIES = {
     "next-tache-error",
@@ -27,28 +30,74 @@ VALID_CATEGORIES = {
 CONFIDENCE_THRESHOLD = 70
 
 _client = None
+_key_index = 0
+
+
+def _get_api_keys() -> list[str]:
+    """Ordered list of API keys to try.
+
+    OPENCODE_API_KEY may hold a single key or a comma-separated list
+    (e.g. "key1,key2,key3") for automatic failover when one key is
+    rate-limited or revoked. Falls back to OPENAI_API_KEY if unset.
+    """
+    raw = os.environ.get("OPENCODE_API_KEY", "").strip()
+    keys = [k.strip() for k in raw.split(",") if k.strip()]
+    if not keys:
+        fallback = os.environ.get("OPENAI_API_KEY", "").strip()
+        if fallback:
+            keys = [fallback]
+    return keys
+
+
+def _build_client(api_key: str) -> OpenAI:
+    base_url = os.environ.get("OPENCODE_BASE_URL", "https://opencode.ai/zen/v1")
+    return OpenAI(api_key=api_key, base_url=base_url)
 
 
 def _get_client() -> OpenAI:
     global _client
+    keys = _get_api_keys()
+    if not keys:
+        raise RuntimeError(
+            "OPENCODE_API_KEY is not set. Export it or add it to a .env file "
+            "before starting the API (see .env.example)."
+        )
     if _client is None:
-        api_key = os.environ.get("OPENCODE_API_KEY") or os.environ.get("OPENAI_API_KEY")
-        base_url = os.environ.get("OPENCODE_BASE_URL", "https://opencode.ai/zen/v1")
-        if not api_key:
-            raise RuntimeError(
-                "OPENCODE_API_KEY is not set. Export it or add it to a .env file "
-                "before starting the API (see .env.example)."
-            )
-        _client = OpenAI(api_key=api_key, base_url=base_url)
+        _client = _build_client(keys[min(_key_index, len(keys) - 1)])
     return _client
 
 
-def classify_log(parsed: dict) -> dict:
+def _rotate_key() -> bool:
+    """Advance to the next configured API key.
+
+    Returns True if there is a next key to try, False if every key has
+    already been attempted.
+    """
+    global _client, _key_index
+    keys = _get_api_keys()
+    if _key_index >= len(keys) - 1:
+        return False
+    _key_index += 1
+    _client = None  # force a client rebuild with the next key
+    return True
+
+
+def _reset_key_index() -> None:
+    global _key_index, _client
+    if _key_index != 0:
+        _key_index = 0
+        _client = None
+
+
+def classify_log(parsed: dict, client: OpenAI | None = None) -> dict:
     """Classify a parsed log entry via the LLM.
 
     Args:
         parsed: Output of src.parser.parse_log — dict with raw_text,
             extracted_error_line.
+        client: Optional OpenAI client to use (used by live tests to inject
+            a real client). When omitted, the shared client is used and
+            configured keys are rotated on auth/rate-limit failures.
 
     Returns:
         Dict with keys: category, root_cause_summary, confidence,
@@ -56,25 +105,37 @@ def classify_log(parsed: dict) -> dict:
 
     Raises:
         ValueError: If parsed is missing required keys.
-        RuntimeError: If the LLM response cannot be parsed as valid JSON.
+        RuntimeError: If the LLM response cannot be parsed as valid JSON,
+            or every configured API key fails.
     """
     if not parsed or not parsed.get("raw_text"):
         raise ValueError("parsed must contain non-empty raw_text")
 
     prompt = build_classification_prompt(parsed["raw_text"])
-
-    client = _get_client()
     model = os.environ.get("LLM_MODEL_NAME", "deepseek-v4-flash-free")
-    response = client.chat.completions.create(
-        model=model,
-        max_tokens=1000,
-        messages=[{"role": "user", "content": prompt}],
-    )
 
-    text = response.choices[0].message.content
+    last_error = None
+    while True:
+        openai_client = client if client is not None else _get_client()
+        try:
+            response = openai_client.chat.completions.create(
+                model=model,
+                max_tokens=1000,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            text = response.choices[0].message.content
+            return _apply_confidence_rule(_parse_llm_json(text))
+        except (AuthenticationError, RateLimitError) as exc:
+            last_error = exc
+            if client is not None:
+                raise RuntimeError(f"LLM request failed: {exc}") from exc
+            if not _rotate_key():
+                break
 
-    result = _parse_llm_json(text)
-    return _apply_confidence_rule(result)
+    _reset_key_index()
+    raise RuntimeError(
+        f"All configured LLM API keys failed (last error: {last_error})"
+    ) from last_error
 
 
 def _parse_llm_json(text: str) -> dict:

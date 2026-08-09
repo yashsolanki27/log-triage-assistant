@@ -1,4 +1,4 @@
-# PROJECT.md — OSS/BSS Log Classifier
+# PROJECT.md — LogPulse (OSS/BSS Log Classifier)
 
 ## What this project does
 
@@ -18,16 +18,16 @@ read logs, identify error patterns, and determine next steps.
 User pastes log text
        │
        ▼
-┌─────────────┐     ┌────────────────┐     ┌──────────────┐
-│   Parser     │────▶│   Classifier   │────▶│   FastAPI     │
-│ src/parser.py│     │src/classifier.py│    │  src/api.py   │
-└─────────────┘     └────────────────┘     └──────┬───────┘
-                                                   │
-                                                   ▼
-                                          ┌─────────────────┐
-                                          │  Streamlit UI    │
-                                          │ streamlit_app.py │
-                                          └─────────────────┘
+┌─────────────┐     ┌────────────────┐     ┌──────────────────┐
+│   Parser     │────▶│   Classifier   │────▶│   FastAPI + SQLite│
+│ src/parser.py│     │src/classifier.py│    │     src/api.py    │
+└─────────────┘     └────────────────┘     └──────┬───────────┘
+                                                    │
+                                                    ▼
+                                      ┌─────────────────────────┐
+                                      │  Vanilla JS SPA (web/)   │
+                                      │  Triage · History · Dash  │
+                                      └─────────────────────────┘
 ```
 
 ### Data flow
@@ -43,11 +43,14 @@ User pastes log text
    Output: `{category, root_cause_summary, confidence, suggested_action, unclassified_reason}`
    Confidence <70% forces category to `unclassified`.
 
-4. **API** (`src/api.py`) — FastAPI `POST /triage` endpoint.
-   Request: `{log_text: str}` → Response: full classification result.
+4. **API** (`src/api.py`) — FastAPI `POST /triage` endpoint, plus
+   `GET /history`, `GET /triage/{id}`, `GET /stats`, `GET /sample-logs`,
+   `GET /health`. Serves the SPA at `/`.
 
-5. **UI** (`streamlit_app.py` + `app_pages/`) — Streamlit multi-page app.
-   Dark OLED theme, two tabs: Analyze logs + Sample logs.
+5. **UI** (`web/index.html` + `web/styles.css` + `web/app.js`) — Vanilla
+   HTML/CSS/JS SPA, dark theme, hash routing across three screens:
+   Triage (paste → classify → result), History (filterable list),
+   Dashboard (category donut + 14-day trend).
 
 ---
 
@@ -72,17 +75,19 @@ see `docs/business-logic.md`
 |-------|-----------|-------|
 | Backend | Python 3.11+, FastAPI | `src/api.py` |
 | LLM | OpenCode Zen (DeepSeek V4 Flash Free) | Single classification call |
-| Frontend | Streamlit 1.60+ | Dark OLED theme via `.streamlit/config.toml` |
-| Testing | pytest | 75 tests, all passing |
-| Storage | None (stateless) | classify-in, result-out |
+| Frontend | Vanilla HTML/CSS/JS SPA | `web/` — dark theme, no build step |
+| Storage | SQLite (stdlib) | `data/triage.db`, override via `TRIAGE_DB_PATH` |
+| Testing | pytest | 64 tests, all passing |
+| Hosting | Railway | `railway.json` + `Procfile` |
 
 ### Environment variables
 
 | Variable | Default | Required |
 |----------|---------|----------|
-| `OPENCODE_API_KEY` | — | Yes |
+| `OPENCODE_API_KEY` | — | Yes (falls back to `OPENAI_API_KEY`) |
 | `OPENCODE_BASE_URL` | `https://opencode.ai/zen/v1` | No |
 | `LLM_MODEL_NAME` | `deepseek-v4-flash-free` | No |
+| `TRIAGE_DB_PATH` | `./data/triage.db` | No (persistent volume in prod) |
 
 ---
 
@@ -90,38 +95,43 @@ see `docs/business-logic.md`
 
 ```
 log-triage-assistant/
-├── streamlit_app.py              # Entry point — navigation + shared sidebar
-├── app_pages/
-│   ├── triage.py                 # Analyze logs page (paste → classify → results)
-│   └── logs_list.py              # Sample logs page (reads from data/)
-├── data/
-│   ├── __init__.py
-│   └── sample_logs.py            # 39 sample logs (single source of truth)
 ├── src/
-│   ├── __init__.py
-│   ├── api.py                    # FastAPI POST /triage
+│   ├── api.py                    # FastAPI app + endpoints (serves SPA too)
 │   ├── classifier.py             # LLM-based classifier
+│   ├── db.py                     # SQLite storage layer
 │   ├── parser.py                 # Log text parser / error line extractor
 │   └── prompts.py                # LLM prompt templates
+├── web/                          # Frontend (vanilla SPA)
+│   ├── index.html                # App shell + screen templates
+│   ├── styles.css                # Design tokens, dark theme
+│   └── app.js                    # Hash router + API calls + charts
+├── data/
+│   ├── __init__.py
+│   ├── sample_logs.py            # 39 sample logs (single source of truth)
+│   └── triage.db                 # SQLite DB (auto-created, gitignored)
 ├── tests/
 │   ├── test_api.py               # API endpoint tests
-│   ├── test_classifier.py        # Classifier logic tests (25+ cases)
+│   ├── test_classifier.py        # Classifier logic tests
+│   ├── test_db.py                # Storage layer tests
 │   ├── test_integration.py       # End-to-end pipeline tests
 │   ├── test_live_llm.py          # Live LLM tests (excluded by default)
 │   ├── test_parser.py            # Parser unit tests
-│   └── test_prompts.py           # Prompt template tests
+│   ├── test_prompts.py           # Prompt template tests
+│   └── test_sample_data.py       # Sample log data integrity tests
+├── streamlit_app.py              # Deprecated Streamlit entry point (alternative UI)
+├── app_pages/                    # Deprecated Streamlit pages
 ├── docs/
-│   ├── architecture.md           # Data flow diagram
+│   ├── architecture.md           # Data flow + endpoints
 │   ├── business-logic.md         # Error taxonomy + decision flowchart
 │   ├── patterns.md               # Coding rules
 │   └── tech-stack.md             # Stack summary
-├── .streamlit/
-│   └── config.toml               # Dark OLED theme config
 ├── Sample_Logs_Titles.xlsx       # Original log data (Excel reference)
 ├── Yash-Solanki-Application-Support-Engineer.pdf  # Resume
-├── ui-ux-pro-max/                # External UI/UX design system tool
 ├── requirements.txt              # Python dependencies
 ├── pytest.ini                    # Pytest config
+├── Procfile                      # Railway process definition
+├── railway.json                  # Railway deploy config
+├── .env.example                  # Env var template
 ├── SPECS.md                      # Build specs and test status
 ├── AGENTS.md                     # AI agent instructions
 └── PROJECT.md                    # This file
@@ -133,115 +143,49 @@ log-triage-assistant/
 
 ### Current UI — page by page
 
-#### 1. `streamlit_app.py` (entry point)
+Single-page app in `web/`. `app.js` does hash-based client routing
+(`#/triage`, `#/history`, `#/dashboard`) and re-renders the matching
+view into `#main`. Templates live in `index.html`.
 
-- Calls `st.set_page_config()` — title "OSS/BSS Log Classifier", icon
-  `:material/psychology:`, layout "wide"
-- Defines `st.navigation()` with two pages (top tabs):
-  - "Analyze logs" → `app_pages/triage.py`
-  - "Sample logs" → `app_pages/logs_list.py`
-- Renders shared sidebar:
-  - Project title + caption
-  - "How it works" (4-step numbered list)
-  - "Error categories" table (5 rows)
-  - "Quick start" tip
-  - Backend info caption
+#### 1. Triage (`#/triage`)
+- Textarea for raw log text with live char count
+- Buttons: Load sample, Browse All Samples, Clear, Classify
+- Submits `POST /triage`, renders a result card (category badge, animated
+  confidence gauge, extracted error line, root cause summary, suggested
+  action, optional "why unclassified" block, expandable raw log)
 
-#### 2. `app_pages/triage.py` (analyze page)
+#### 2. History (`#/history`)
+- Category filter chips (All + the 5 categories) + Refresh
+- Fetches `GET /history`, renders compact list; click to expand a result card
 
-Layout (top to bottom):
-1. Section header: "Paste your log entry" + caption
-2. `st.container(border=True)` containing:
-   - `st.text_area` — 200px height, placeholder with example log
-   - `st.columns([6, 1])` — spacer + "Classify log" button (primary, `:material/search:`)
-3. On click → `requests.post("http://localhost:8000/triage", json={"log_text": ...})`
-4. Results (when successful):
-   - `st.success("Classification complete")`
-   - 3-column metrics row:
-     - "Detected category" → `st.badge(category, color=...)`
-     - "Confidence score" → `st.badge(f"{confidence}%", color=green/orange/red)`
-     - "Verdict" → `st.badge("Classified" or "Needs manual review")`
-   - Two bordered containers:
-     - "Root cause" → `st.markdown(result["root_cause_summary"])`
-     - "Suggested next action" → `st.markdown(result["suggested_action"])`
-   - Conditional bordered container:
-     - "Why it is unclassified" → only when `unclassified_reason` is not null
-5. Error states: `st.error()` for connection, timeout, HTTP errors
-6. Empty input: `st.warning("Paste a log entry first")`
+#### 3. Dashboard (`#/dashboard`)
+- Fetches `GET /stats`; renders 4 stat cards, SVG category donut, 14-day trend bars
 
-#### 3. `app_pages/logs_list.py` (sample logs page)
+### Theme (web/styles.css design tokens)
 
-Layout (top to bottom):
-1. Section header: "Sample logs for testing" + copy instructions
-2. For each category (next-tache-error → unclassified):
-   - Category heading with badge count: `#### Task sequencing :gray-badge[2 logs]`
-   - Caption: category description
-   - For each log in that category:
-     - `st.container(border=True)` with `st.columns([4, 6])`:
-       - Left: bold title + caption with tag
-       - Right: `st.code(entry["log"], language=None, wrap_lines=True)`
-3. Footer: `st.info("Switch to Analyze logs tab...")`
-
-### Theme colors (`.streamlit/config.toml`)
-
-| Token | Hex | Usage |
-|-------|-----|-------|
-| Primary | `#3B82F6` | Buttons, active elements, links |
-| Background | `#0d1117` | Main page background |
-| Secondary BG | `#161b22` | Widget backgrounds, code blocks |
-| Text | `#e6edf3` | Body text |
-| Border | `#30363d` | Widget borders, containers |
-| Code text | `#d2a8ff` | Inline code, code blocks |
-| Red | `#f85149` | Errors, provisioning-fault |
-| Green | `#3fb950` | Success, high confidence |
-| Orange | `#d29922` | Warnings, medium confidence |
-| Blue | `#58a6ff` | Links, next-tache-error |
-| Violet | `#bc8cff` | api-integration-error |
-| Gray | `#8b949e` | Unclassified, muted text |
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--accent` | `#3B82F6` | Primary actions, active elements |
+| `--bg` | `#0A0D12` | Page background |
+| `--panel` | `#12161D` | Cards, panels |
+| `--text-primary` | `#E6EDF3` | Body text |
+| `--border` | `#2A3140` | Borders, dividers |
+| `--info` | `#58A6FF` | High confidence, links |
+| `--danger` | `#F85149` | Errors, provisioning-fault |
+| Category vars | `--cat-next-tache`, `--cat-state-transition`, `--cat-provisioning`, `--cat-api`, `--cat-unclassified` | Badge/chart colors |
 
 ### Font stack
 
-- **Body:** Fira Sans (Google Fonts) — weights 300-700
-- **Headings:** Fira Sans — weights 500-700
-- **Code:** Fira Code (Google Fonts) — weights 400-600
-- **Base size:** 15px
+- **Body/Headings:** Space Grotesk (Google Fonts)
+- **UI text:** Inter
+- **Code:** JetBrains Mono
+- Loaded via Google Fonts `<link>` in `web/index.html`
 
-### What the frontend does NOT have (improvement opportunities)
+### Improvement opportunities (not shipped — out of current scope)
 
-These are concrete gaps the next AI should address:
-
-1. **No classification history** — Results disappear on page refresh.
-   Add `st.session_state` to persist past results in a scrollable list.
-
-2. **No batch upload** — One log at a time. Add file upload (`.txt`, `.log`)
-   that processes multiple logs and shows results in a table.
-
-3. **No export/download** — Results can't be saved. Add CSV/JSON export button.
-
-4. **No analytics dashboard** — No charts showing classification distribution,
-   confidence trends, or category breakdown over time.
-
-5. **No light/dark mode toggle** — Dark only. Could add `[theme.light]` and
-   `[theme.dark]` sections to config.toml and let users switch.
-
-6. **No mobile optimization** — Layout is "wide" but not responsive. Code blocks
-   overflow on small screens.
-
-7. **No loading skeleton** — Just a spinner. Add skeleton placeholders for
-   better perceived performance.
-
-8. **No keyboard shortcuts** — No Ctrl+Enter to submit, no tab navigation.
-
-9. **No real-time streaming** — LLM response comes all at once. Could use
-   Server-Sent Events to stream the classification as it's generated.
-
-10. **No side-by-side comparison** — Can't compare two log classifications.
-
-11. **No search/filter in sample logs** — 39 logs with no search. Add a
-    `st.text_input` filter above the log list.
-
-12. **No category color coding on results** — Category badge is colored but
-    the result containers are all the same. Could tint containers by category.
+These are concrete gaps a future iteration could address:
+batch upload, CSV/JSON export, light/dark toggle, keyboard shortcuts,
+SSE streaming, side-by-side comparison.
 
 ### API contract
 
@@ -256,6 +200,10 @@ Request:
 
 Response (200):
 {
+  "id": int,
+  "created_at": "ISO timestamp",
+  "raw_text": "string",
+  "extracted_error_line": "string",
   "category": "next-tache-error | state-transition-block | provisioning-fault | api-integration-error | unclassified",
   "root_cause_summary": "string — plain English explanation",
   "confidence": 85,                    // 0-100 integer
@@ -264,38 +212,45 @@ Response (200):
 }
 
 Error (422): Validation error
-Error (500): Classifier runtime error / missing API key
+Error (500/502): Classifier runtime error / missing API key
 ```
 
 ### How to run locally
 
 ```bash
-# Terminal 1 — Backend
 cd log-triage-assistant
 pip install -r requirements.txt
-export OPENCODE_API_KEY=your_key_here
+set OPENCODE_API_KEY=your_key_here     # Windows
+# export OPENCODE_API_KEY=your_key_here   # macOS/Linux
 uvicorn src.api:app --port 8000
-
-# Terminal 2 — Frontend
-cd log-triage-assistant
-streamlit run streamlit_app.py --server.port 8501
 ```
 
-Open http://localhost:8501
+Open http://localhost:8000 — the SPA is served from the same process.
 
 ### How to run tests
 
 ```bash
 cd log-triage-assistant
-python -m pytest tests/ -v
+python -m pytest tests/ -q
 ```
+
+### How to deploy (Railway)
+
+1. Push the repo to GitHub.
+2. On Railway, create a new project → Deploy from GitHub repo.
+3. Add env vars: `OPENCODE_API_KEY` (required); optionally
+   `OPENCODE_BASE_URL`, `LLM_MODEL_NAME`.
+4. Optional but recommended: mount a volume and set
+   `TRIAGE_DB_PATH=/data/triage.db` so history survives restarts.
+5. Railway uses `Procfile`/`railway.json` automatically (start command
+   `uvicorn src.api:app --host 0.0.0.0 --port $PORT`, health check `/health`).
 
 ---
 
 ## Sample logs
 
 39 logs in `data/sample_logs.py`, sourced from:
-- Real telecom OSS/BSS error patterns (Zsmart, ISAP, OFM, CDOT, Huawei)
+- Real telecom OSS/BSS error patterns (ISAP, OFM, CDOT, Huawei)
 - Scenarios from Yash Solanki's resume (BSNL 100M+ subscriber deployment)
 - Azure AD / M365 integration issues
 
@@ -310,12 +265,8 @@ To add logs: edit `data/sample_logs.py`, add to the `SAMPLE_LOGS` list.
 - One function, one responsibility
 - No silent fallback — `unclassified` is a valid output, not an error
 - All LLM prompts in `src/prompts.py` (not inline)
-- Material Symbols icons (`:material/icon_name:`) — no emojis
-- Sentence casing for titles and labels
-- `st.code()` for log display (select-and-copy friendly)
-- Prefer `st.container(border=True)` over `st.divider()` for spacing
-- Use `st.badge()` for status indicators
-- Never use `use_container_width` (deprecated) — use `width="stretch"` instead
+- SPA: SVG icons, no emojis; sentence casing for titles/labels
+- `pre`/`code` blocks for log display (select-and-copy friendly)
 
 ---
 
@@ -323,4 +274,3 @@ To add logs: edit `data/sample_logs.py`, add to the `SAMPLE_LOGS` list.
 
 - **Current branch:** `fix/swap-llm-provider`
 - **Remote:** `origin` → `https://github.com/yashsolanki27/log-triage-assistant.git`
-- **Status:** Clean working tree after commit

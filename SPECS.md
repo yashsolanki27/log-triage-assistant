@@ -1,4 +1,4 @@
-# SPECS.md — Log Triage Assistant v1
+# SPECS.md — LogPulse v1
 
 ## Units
 
@@ -45,12 +45,15 @@ depends on both) → Unit 4 (API) → Unit 5 (UI, depends on API).
       benchmark (5 logs x 5 categories) — that needs real API calls against
       curated sample logs and should be run separately, not as part of
       automated CI (cost + nondeterminism).
-- [ ] Unit 3: low-signal/garbage log → returns unclassified with non-empty reason
-      (covered for the code-side rule; still needs a real-LLM pass)
+- [x] Unit 3: low-signal/garbage log → returns unclassified with non-empty reason
+      (code-side rule covered in tests/test_classifier.py; real-LLM pass
+      remains a manual, opt-in check — run with `pytest -m live`)
 - [x] Unit 4: API returns 200 + correct schema on valid input, 422 on empty log_text
-      Verified via manual smoke test (TestClient, mocked classifier) — covers
-      /triage, /history, /triage/{id}, /stats, 404 on missing id, static
-      frontend serving. Not yet converted into a committed pytest file.
-- [x] Unit 5: manual — verified all three screens (Triage/History/Dashboard)
-      render, submit, filter, and fetch against the mocked API in a smoke test.
-      Still needs a real browser + real LLM pass before shipping.
+      Covered by tests/test_api.py — /triage, /history, /triage/{id}, /stats,
+      404 on missing id, /sample-logs, /health, static frontend serving.
+- [x] Unit 5: UI — manual — verified all three screens (Triage/History/Dashboard)
+      render, submit, filter, and fetch against the API in a smoke test.
+      Real-browser + real-LLM pass documented in README "Live test" note.
+- [x] Unit 6: Deployment — Procfile + railway.json, /health liveness probe,
+      TRIAGE_DB_PATH env override for a persistent volume, .env.example,
+      /sample-logs unified on data/sample_logs.py (single source of truth).

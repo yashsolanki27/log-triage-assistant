@@ -1,4 +1,4 @@
-# AGENTS.md — Log Triage Assistant
+# AGENTS.md — LogPulse
 
 ## What this project is
 

@@ -7,12 +7,14 @@ isolated behind a small interface so the stateless core (parser, prompts,
 classifier) stays untouched — patterns.md: one function, one responsibility.
 """
 
+import os
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-DB_PATH = Path(__file__).resolve().parent.parent / "data" / "triage.db"
+_DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent / "data" / "triage.db"
+DB_PATH = Path(os.environ.get("TRIAGE_DB_PATH", str(_DEFAULT_DB_PATH)))
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS triages (
@@ -32,7 +34,7 @@ CREATE TABLE IF NOT EXISTS triages (
 @contextmanager
 def _connect():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
     try:
         yield conn
@@ -136,7 +138,3 @@ def get_stats() -> dict:
         "by_category": by_category,
         "trend": list(reversed([{"day": r["day"], "count": r["c"]} for r in trend_rows])),
     }
-
-
-def _row_to_dict(row: sqlite3.Row) -> dict:
-    return dict(row)

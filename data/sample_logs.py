@@ -50,7 +50,7 @@ SAMPLE_LOGS = [
         "category": "next-tache-error",
         "tag": "next-tache-error",
         "log": (
-            "2026-07-11 06:48:00 ERROR [ZsmartWorkflow] "
+            "2026-07-11 06:48:00 ERROR [OrderEngine] "
             "Order ORD-79943 Next Tache error: task ACTIVATE_BROADBAND "
             "started before prerequisite VALIDATE_CUST_PROFILE completed. "
             "Tache sequence broken at step 3/7. Order halted in O2A "
@@ -62,7 +62,7 @@ SAMPLE_LOGS = [
         "category": "next-tache-error",
         "tag": "next-tache-error",
         "log": (
-            "2026-07-12 01:36:00 ERROR [ZsmartWorkflow] "
+            "2026-07-12 01:36:00 ERROR [OrderEngine] "
             "Order ORD-37641 Next Tache error: task ACTIVATE_BROADBAND "
             "started before prerequisite VALIDATE_CUST_PROFILE completed. "
             "Tache sequence broken at step 3/7. Order halted in O2A "
@@ -78,7 +78,7 @@ SAMPLE_LOGS = [
         "category": "state-transition-block",
         "tag": "collab-wait-timeout",
         "log": (
-            "2026-07-10 10:43:00 CRITICAL [ZsmartWorkflow] "
+            "2026-07-10 10:43:00 CRITICAL [OrderEngine] "
             "order_id=ORD-79222 collaborative_wait_time=45s exceeded "
             "threshold(30s). Retry triggered automatically. Module: O2A."
         ),
@@ -88,7 +88,7 @@ SAMPLE_LOGS = [
         "category": "state-transition-block",
         "tag": "collab-wait-timeout",
         "log": (
-            "2026-07-12 21:28:00 ERROR [ZsmartWorkflow] "
+            "2026-07-12 21:28:00 ERROR [OrderEngine] "
             "order_id=ORD-99997 collaborative_wait_time=45s exceeded "
             "threshold(30s). Retry triggered automatically. Module: O2A."
         ),
@@ -98,7 +98,7 @@ SAMPLE_LOGS = [
         "category": "state-transition-block",
         "tag": "collab-wait-timeout",
         "log": (
-            "2026-07-13 03:14:00 CRITICAL [ZsmartWorkflow] "
+            "2026-07-13 03:14:00 CRITICAL [OrderEngine] "
             "order_id=ORD-95310 collaborative_wait_time=45s exceeded "
             "threshold(30s). Retry triggered automatically. Module: O2A."
         ),
@@ -108,7 +108,7 @@ SAMPLE_LOGS = [
         "category": "state-transition-block",
         "tag": "order-refire-loop",
         "log": (
-            "2026-07-11 00:36:00 ERROR [ZsmartWorkflow] "
+            "2026-07-11 00:36:00 ERROR [OrderEngine] "
             "order_id=ORD-88042 refire_count=6 exceeded threshold(5). "
             "Loop detected between tasks ACTIVATE and VALIDATE. "
             "Escalated to L3. Module: O2A."
@@ -119,7 +119,7 @@ SAMPLE_LOGS = [
         "category": "state-transition-block",
         "tag": "order-refire-loop",
         "log": (
-            "2026-07-11 12:26:00 ERROR [ZsmartWorkflow] "
+            "2026-07-11 12:26:00 ERROR [OrderEngine] "
             "order_id=ORD-87224 refire_count=6 exceeded threshold(5). "
             "Loop detected between tasks ACTIVATE and VALIDATE. "
             "Escalated to L3. Module: O2A."
@@ -130,7 +130,7 @@ SAMPLE_LOGS = [
         "category": "state-transition-block",
         "tag": "order-refire-loop",
         "log": (
-            "2026-07-11 23:32:00 WARN [ZsmartWorkflow] "
+            "2026-07-11 23:32:00 WARN [OrderEngine] "
             "order_id=ORD-63592 refire_count=6 exceeded threshold(5). "
             "Loop detected between tasks ACTIVATE and VALIDATE. "
             "Escalated to L3. Module: O2A."
@@ -211,7 +211,7 @@ SAMPLE_LOGS = [
         "category": "provisioning-fault",
         "tag": "null-spatial-param",
         "log": (
-            "2026-07-10 14:04:00 WARN [ZsmartWorkflow] "
+            "2026-07-10 14:04:00 WARN [OrderEngine] "
             "service_instance_id=SVC-38585 spatial_parameter=NULL. "
             "Provisioning check failed at geo-validation step. "
             "Node assignment blocked. Module: FTTH."
@@ -222,7 +222,7 @@ SAMPLE_LOGS = [
         "category": "provisioning-fault",
         "tag": "null-spatial-param",
         "log": (
-            "2026-07-11 14:55:00 ERROR [ZsmartWorkflow] "
+            "2026-07-11 14:55:00 ERROR [OrderEngine] "
             "service_instance_id=SVC-58129 spatial_parameter=NULL. "
             "Provisioning check failed at geo-validation step. "
             "Node assignment blocked. Module: FTTH."
@@ -233,7 +233,7 @@ SAMPLE_LOGS = [
         "category": "provisioning-fault",
         "tag": "null-spatial-param",
         "log": (
-            "2026-07-12 20:02:00 ERROR [ZsmartWorkflow] "
+            "2026-07-12 20:02:00 ERROR [OrderEngine] "
             "service_instance_id=SVC-47950 spatial_parameter=NULL. "
             "Provisioning check failed at geo-validation step. "
             "Node assignment blocked. Module: FTTH."
@@ -303,7 +303,7 @@ SAMPLE_LOGS = [
         "category": "api-integration-error",
         "tag": "db-timeout",
         "log": (
-            "2026-07-10 16:41:00 ERROR [ZsmartDB] "
+            "2026-07-10 16:41:00 ERROR [ServiceDB] "
             "Query timeout after 30000ms on table service_instance. "
             "Rows_affected=0. service_instance_id=SVC-98045. "
             "Connection pool exhausted (48/50 active). Module: DSCM."
@@ -314,7 +314,7 @@ SAMPLE_LOGS = [
         "category": "api-integration-error",
         "tag": "db-timeout",
         "log": (
-            "2026-07-10 19:31:00 ERROR [ZsmartDB] "
+            "2026-07-10 19:31:00 ERROR [ServiceDB] "
             "Query timeout after 30000ms on table service_instance. "
             "Rows_affected=0. service_instance_id=SVC-44930. "
             "Connection pool exhausted (48/50 active). Module: DSCM."
@@ -325,7 +325,7 @@ SAMPLE_LOGS = [
         "category": "api-integration-error",
         "tag": "db-timeout",
         "log": (
-            "2026-07-11 22:50:00 ERROR [ZsmartDB] "
+            "2026-07-11 22:50:00 ERROR [ServiceDB] "
             "Query timeout after 30000ms on table service_instance. "
             "Rows_affected=0. service_instance_id=SVC-55360. "
             "Connection pool exhausted (48/50 active). Module: DSCM."
@@ -336,7 +336,7 @@ SAMPLE_LOGS = [
         "category": "api-integration-error",
         "tag": "db-timeout",
         "log": (
-            "2026-07-13 01:59:00 ERROR [ZsmartDB] "
+            "2026-07-13 01:59:00 ERROR [ServiceDB] "
             "Query timeout after 30000ms on table service_instance. "
             "Rows_affected=0. service_instance_id=SVC-47359. "
             "Connection pool exhausted (48/50 active). Module: DSCM."
@@ -413,7 +413,7 @@ SAMPLE_LOGS = [
         "category": "api-integration-error",
         "tag": "payload-schema-mismatch",
         "log": (
-            "2026-07-11 08:52:00 ERROR [ZsmartCPQ] "
+            "2026-07-11 08:52:00 ERROR [ProductCatalog] "
             "vendor=Huawei expected_schema=v3 received_schema=v2. "
             "Activation rejected at CPQ validation gate. "
             "order_id=ORD-53291. Module: CPQ."
@@ -424,7 +424,7 @@ SAMPLE_LOGS = [
         "category": "api-integration-error",
         "tag": "payload-schema-mismatch",
         "log": (
-            "2026-07-12 18:25:00 WARN [ZsmartCPQ] "
+            "2026-07-12 18:25:00 WARN [ProductCatalog] "
             "vendor=Huawei expected_schema=v3 received_schema=v2. "
             "Activation rejected at CPQ validation gate. "
             "order_id=ORD-22573. Module: CPQ."
@@ -435,7 +435,7 @@ SAMPLE_LOGS = [
         "category": "api-integration-error",
         "tag": "payload-schema-mismatch",
         "log": (
-            "2026-07-13 15:00:00 CRITICAL [ZsmartCPQ] "
+            "2026-07-13 15:00:00 CRITICAL [ProductCatalog] "
             "vendor=Huawei expected_schema=v3 received_schema=v2. "
             "Activation rejected at CPQ validation gate. "
             "order_id=ORD-53683. Module: CPQ."
@@ -466,11 +466,11 @@ SAMPLE_LOGS = [
         ),
     },
     {
-        "title": "Duplicate RBAC profile detected in Zsmart",
+        "title": "Duplicate RBAC profile detected",
         "category": "unclassified",
         "tag": "duplicate-profile",
         "log": (
-            "2026-07-13 05:12:00 ERROR [ZsmartAuth] "
+            "2026-07-13 05:12:00 ERROR [AccessManager] "
             "user_id=USR-40202 has 2 active profiles with conflicting "
             "RBAC roles. Login session conflict raised. "
             "Region: South Zone. Module: RBAC."

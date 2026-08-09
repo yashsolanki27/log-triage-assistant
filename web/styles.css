@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Log Triage Assistant — design tokens
+   LogPulse — design tokens
    Palette: cool graphite console (not the generic near-black+acid-green
    or cream+terracotta defaults). Amber signal accent = telecom alert LED.
    Category colors are deliberately distinct hues, not tints of one accent.
@@ -932,4 +932,165 @@ button {
 
 @media (max-width: 420px) {
   .stat-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* ==========================================================================
+   Sample Logs Panel (inline on triage page)
+   ========================================================================== */
+
+.sample-logs-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-card);
+  overflow-y: auto;
+  animation: rise-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sample-logs-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.sample-logs-panel-header h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 var(--space-1);
+}
+
+.sample-logs-panel-header .lede {
+  margin: 0;
+}
+
+.sample-logs-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.modal-search {
+  width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  padding: 10px var(--space-3);
+  transition: border-color 0.15s ease;
+}
+
+.modal-search::placeholder { color: var(--text-tertiary); }
+
+.modal-search:focus {
+  outline: none;
+  border-color: var(--accent-dim);
+  box-shadow: 0 0 0 3px var(--accent-wash);
+}
+
+.sample-logs-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--space-3);
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: var(--space-2);
+}
+
+.sample-logs-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sample-logs-list::-webkit-scrollbar-track {
+  background: var(--bg-elevated);
+  border-radius: 3px;
+}
+
+.sample-logs-list::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+
+.sample-log-item {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+}
+
+.sample-log-item:hover {
+  border-color: var(--accent-dim);
+  background: var(--surface-hover);
+  transform: translateY(-1px);
+}
+
+.sample-log-item:active {
+  transform: translateY(0);
+}
+
+.sample-log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.sample-log-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.sample-log-tag {
+  font-size: 10.5px;
+  padding: 2px 8px;
+  flex-shrink: 0;
+}
+
+.chip-sm {
+  min-height: auto;
+  padding: 2px 8px;
+  font-size: 10.5px;
+}
+
+.sample-log-preview {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+  max-height: 4.5em;
+  overflow: hidden;
+}
+
+@media (max-width: 720px) {
+  .sample-logs-list {
+    grid-template-columns: 1fr;
+    max-height: 400px;
+  }
+
+  .sample-logs-panel-header {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .sample-log-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+  }
 }

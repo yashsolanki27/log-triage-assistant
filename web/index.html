@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#0A0D12" />
-<title>Log Triage Assistant</title>
+<title>LogPulse</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -23,8 +23,7 @@
         </svg>
       </span>
       <span class="brand-text">
-        <span class="brand-name">Triage</span>
-        <span class="brand-sub">Log Assistant</span>
+        <span class="brand-name">LogPulse</span>
       </span>
     </div>
 
@@ -105,6 +104,7 @@
           <p class="field-hint" id="char-count">0 characters</p>
           <div class="field-actions">
             <button type="button" class="btn btn-ghost" id="btn-sample">Load sample</button>
+            <button type="button" class="btn btn-ghost" id="btn-browse-samples">Browse All Samples</button>
             <button type="button" class="btn btn-ghost" id="btn-clear">Clear</button>
             <button type="submit" class="btn btn-primary" id="btn-submit">
               <span class="btn-label">Classify</span>
@@ -222,6 +222,27 @@
   </article>
 </template>
 
-<script src="/assets/app.js"></script>
+<section id="sample-logs-panel" class="sample-logs-panel" hidden>
+    <div class="sample-logs-panel-header">
+      <div>
+        <p class="eyebrow">Log Library</p>
+        <h2>Sample Logs</h2>
+        <p class="lede">Pick any log below to load it into the editor and classify it.</p>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" id="btn-close-samples">Close</button>
+    </div>
+    <div class="sample-logs-toolbar">
+      <input type="text" id="sample-search" class="modal-search" placeholder="Search by title or tag..." />
+      <div class="chip-group" id="sample-tag-filters" role="group" aria-label="Filter by tag">
+        <button class="chip is-active" data-tag="">All</button>
+      </div>
+    </div>
+    <div id="sample-logs-list" class="sample-logs-list"></div>
+    <div id="sample-logs-empty" class="empty-state" hidden>
+      <p>No matching logs found.</p>
+    </div>
+  </section>
+
+  <script src="/assets/app.js"></script>
 </body>
 </html>
