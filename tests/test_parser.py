@@ -83,3 +83,23 @@ def test_priority_exception_over_error_marker():
 def test_priority_exception_over_keyword():
     log = "check the error log\nNullPointerException at line 5"
     assert _extract_error_line(log) == "NullPointerException at line 5"
+
+
+def test_priority_fatal_marker():
+    log = "routine INFO line\nFATAL connection pool exhausted"
+    assert _extract_error_line(log) == "FATAL connection pool exhausted"
+
+
+def test_priority_critical_marker():
+    log = "routine INFO line\nCRITICAL disk write failure on /data"
+    assert _extract_error_line(log) == "CRITICAL disk write failure on /data"
+
+
+def test_priority_fatal_over_keyword():
+    log = "FATAL node unreachable\ncheck the error log for details"
+    assert _extract_error_line(log) == "FATAL node unreachable"
+
+
+def test_priority_exception_over_fatal():
+    log = "FATAL batch aborted\ncom.order.OrderException: sequencing violated"
+    assert _extract_error_line(log) == "com.order.OrderException: sequencing violated"
