@@ -56,6 +56,88 @@ def test_triage_success(client):
     assert "id" in data and "created_at" in data
 
 
+# ---------------------------------------------------------------------------
+# TriageResult.unclassified_reason contract (tech-debt item #8) — the model
+# self-enforces the business-logic.md rule, so a caller cannot bypass it.
+# ---------------------------------------------------------------------------
+
+
+def _make_result(category="next-tache-error", unclassified_reason=None):
+    from src.api import TriageResult
+
+    return TriageResult(
+        id=1,
+        created_at="2026-08-09T00:00:00+00:00",
+        raw_text="ERROR: boom",
+        extracted_error_line="ERROR: boom",
+        category=category,
+        root_cause_summary="Root cause",
+        confidence=90,
+        suggested_action="Act",
+        unclassified_reason=unclassified_reason,
+    )
+
+
+def test_triage_result_unclassified_requires_non_empty_reason():
+    from pydantic import ValidationError
+
+    for bad_reason in (None, "", "   "):
+        with pytest.raises(
+            ValidationError,
+            match="unclassified category requires a non-empty unclassified_reason",
+        ):
+            _make_result(category="unclassified", unclassified_reason=bad_reason)
+
+
+def test_triage_result_unclassified_with_reason_ok():
+    result = _make_result(
+        category="unclassified", unclassified_reason="Log too sparse to classify."
+    )
+    assert result.category == "unclassified"
+    assert result.unclassified_reason == "Log too sparse to classify."
+
+
+def test_triage_result_non_unclassified_must_have_none_reason():
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError, match="must have unclassified_reason=None"):
+        _make_result(category="next-tache-error", unclassified_reason="should not be here")
+
+
+def test_triage_result_non_unclassified_with_none_reason_ok():
+    result = _make_result(category="next-tache-error", unclassified_reason=None)
+    assert result.unclassified_reason is None
+
+
+def test_triage_api_unclassified_with_reason_ok(client):
+    """Happy path: unclassified + non-empty reason survives the API boundary."""
+    good = dict(FAKE_RESULT)
+    good["category"] = "unclassified"
+    good["unclassified_reason"] = "Log too sparse to classify."
+    with patch("src.api.classify_log", return_value=good):
+        r = client.post("/triage", json={"log_text": "ERROR something"})
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["category"] == "unclassified"
+    assert data["unclassified_reason"] == "Log too sparse to classify."
+
+
+def test_triage_api_rejects_unclassified_without_reason(client):
+    """Even if a classifier layer ever returned unclassified with no reason,
+    the API contract must reject it — validation at the response boundary."""
+    from fastapi.exceptions import ResponseValidationError
+
+    bad = dict(FAKE_RESULT)
+    bad["category"] = "unclassified"
+    bad["unclassified_reason"] = None
+    with patch("src.api.classify_log", return_value=bad):
+        with pytest.raises(
+            ResponseValidationError,
+            match="unclassified category requires a non-empty unclassified_reason",
+        ):
+            client.post("/triage", json={"log_text": "ERROR something"})
+
+
 def test_triage_empty_log_returns_422(client):
     r = client.post("/triage", json={"log_text": "   "})
     assert r.status_code == 422

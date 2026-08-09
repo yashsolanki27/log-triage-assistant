@@ -31,7 +31,7 @@ as reopened below).
 
 7. **No request timeout or rate limiting** — `/triage` calls the external LLM with no explicit timeout, so a slow or hung LLM call blocks the FastAPI worker indefinitely; no rate limiting means a burst of requests can exhaust the LLM quota (src/classifier.py, src/api.py). Debt not bug: robustness/ops hardening, not a correctness defect. Suggested fix: pass `timeout=` to `chat.completions.create` and add per-client rate limiting.
 
-8. **`TriageResult.unclassified_reason` typed `str | None` with no conditional constraint** — The Pydantic model allows `None` even when category is `unclassified`, even though docs/business-logic.md requires a non-empty reason for unclassified results (src/api.py). Debt not bug: currently mitigated at the classifier layer (Finding 19), but the API contract itself is not self-enforcing. Suggested fix: re-add a `model_validator` requiring a non-empty reason when category=unclassified (was added at 3bf400b, dropped by the v2.0 rewrite — reopened).
+8. ~~**`TriageResult.unclassified_reason` typed `str | None` with no conditional constraint**~~ — CLOSED: re-added the `model_validator` on `TriageResult` (src/api.py) dropped by the v2.0 rewrite — `unclassified` requires a non-empty reason, every other category requires `None`. Regression tests `test_triage_result_unclassified_requires_non_empty_reason`, `test_triage_result_unclassified_with_reason_ok`, `test_triage_result_non_unclassified_must_have_none_reason`, `test_triage_result_non_unclassified_with_none_reason_ok`, `test_triage_api_unclassified_with_reason_ok`, and `test_triage_api_rejects_unclassified_without_reason` restored as a fence. Contract documented in docs/business-logic.md ("unclassified_reason contract") and docs/architecture.md.
 
 ---
 

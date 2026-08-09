@@ -17,7 +17,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from src import db
 from src.classifier import classify_log
@@ -70,6 +70,25 @@ class TriageResult(BaseModel):
     confidence: int
     suggested_action: str
     unclassified_reason: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_unclassified_reason(self) -> "TriageResult":
+        """Enforce the business-logic.md contract at the API boundary.
+
+        unclassified must always carry a non-empty reason; every other
+        category must carry None. Self-enforcing here so the contract holds
+        even if a caller bypasses the classifier layer (tech-debt item #8).
+        """
+        if self.category == "unclassified":
+            if not self.unclassified_reason or not self.unclassified_reason.strip():
+                raise ValueError(
+                    "unclassified category requires a non-empty unclassified_reason"
+                )
+        elif self.unclassified_reason is not None:
+            raise ValueError(
+                "non-unclassified category must have unclassified_reason=None"
+            )
+        return self
 
 
 @app.post("/triage", response_model=TriageResult)

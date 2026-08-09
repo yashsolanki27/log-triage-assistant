@@ -11,6 +11,16 @@ Prompt templates: src/prompts.py
 API layer: src/api.py (also serves the SPA from /web at "/")
 Storage layer: src/db.py (SQLite, defaults to data/triage.db)
 
+## TriageResult response contract
+
+The `TriageResult` model (src/api.py) is the single response shape for
+`POST /triage`, `GET /history`, and `GET /triage/{id}`. It self-enforces the
+business-logic.md `unclassified_reason` rule via a `model_validator`:
+category `unclassified` requires a non-empty `unclassified_reason`, every
+other category requires `null`. Any result that violates this is rejected at
+the response boundary (HTTP 500), so the contract holds regardless of how a
+result is produced.
+
 ## Data flow
 
 1. Browser SPA posts raw log text to `POST /triage`.
