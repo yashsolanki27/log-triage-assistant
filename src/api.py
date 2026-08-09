@@ -113,7 +113,11 @@ def stats():
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "version": app.version,
+        "db_path": str(db.DB_PATH),
+    }
 
 
 @app.get("/sample-logs", response_model=list[SampleLog])

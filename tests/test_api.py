@@ -38,7 +38,10 @@ def client(tmp_path, monkeypatch):
 def test_health(client):
     r = client.get("/health")
     assert r.status_code == 200
-    assert r.json() == {"status": "ok"}
+    data = r.json()
+    assert data["status"] == "ok"
+    assert "version" in data
+    assert "db_path" in data
 
 
 def test_triage_success(client):
