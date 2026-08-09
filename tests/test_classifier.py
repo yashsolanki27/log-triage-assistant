@@ -99,6 +99,30 @@ def test_confidence_rule_unclassified_with_null_reason_gets_default():
     assert result["unclassified_reason"]
 
 
+def test_confidence_rule_does_not_mutate_input():
+    """The input dict is read-only to _apply_confidence_rule — the rule is
+    applied to a new dict, so the caller's data is never modified."""
+    original = {
+        "category": "state-transition-block",
+        "confidence": 55,
+        "unclassified_reason": None,
+    }
+    _apply_confidence_rule(original)
+    assert original == {
+        "category": "state-transition-block",
+        "confidence": 55,
+        "unclassified_reason": None,
+    }
+
+
+def test_confidence_rule_returns_new_dict():
+    """The returned dict is a separate object, not the mutated input."""
+    original = {"category": "next-tache-error", "confidence": 88, "unclassified_reason": None}
+    result = _apply_confidence_rule(original)
+    assert result is not original
+    assert result["category"] == "next-tache-error"
+
+
 # ---------------------------------------------------------------------------
 # Multi-key failover (_get_api_keys + rotation in classify_log)
 # ---------------------------------------------------------------------------

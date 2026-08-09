@@ -165,40 +165,44 @@ def _apply_confidence_rule(result: dict) -> dict:
     this is not something we trust the model to self-police (patterns.md:
     unclassified is a valid output, never a silently hidden one).
 
+    Returns a NEW dict (patterns.md: functions that return a dict must not
+    mutate the one they were given). The input is never modified.
+
     Guarantees (regardless of what the LLM returned):
       - low confidence (<70) forces category=unclassified
       - the unclassified_reason always explains the below-threshold note
       - category=unclassified always carries a non-empty reason
     """
-    category = result.get("category")
-    confidence = result.get("confidence")
+    updated = dict(result)
+    category = updated.get("category")
+    confidence = updated.get("confidence")
 
     if category not in VALID_CATEGORIES:
-        result["category"] = "unclassified"
-        result["unclassified_reason"] = (
-            result.get("unclassified_reason")
+        updated["category"] = "unclassified"
+        updated["unclassified_reason"] = (
+            updated.get("unclassified_reason")
             or f"Model returned unrecognised category: {category!r}"
         )
         category = "unclassified"
 
     if isinstance(confidence, (int, float)) and confidence < CONFIDENCE_THRESHOLD:
         if category != "unclassified":
-            result["category"] = "unclassified"
+            updated["category"] = "unclassified"
         threshold_note = (
             f"Confidence {confidence} is below the {CONFIDENCE_THRESHOLD}% threshold."
         )
-        reason = result.get("unclassified_reason") or ""
+        reason = updated.get("unclassified_reason") or ""
         if not reason:
-            result["unclassified_reason"] = threshold_note
+            updated["unclassified_reason"] = threshold_note
         elif "below" not in reason.lower():
-            result["unclassified_reason"] = f"{threshold_note} {reason}"
+            updated["unclassified_reason"] = f"{threshold_note} {reason}"
 
-    if result["category"] == "unclassified" and not result.get("unclassified_reason"):
-        result["unclassified_reason"] = (
+    if updated["category"] == "unclassified" and not updated.get("unclassified_reason"):
+        updated["unclassified_reason"] = (
             "No taxonomy category confidently matched; flag for human review."
         )
 
-    if result["category"] != "unclassified":
-        result["unclassified_reason"] = None
+    if updated["category"] != "unclassified":
+        updated["unclassified_reason"] = None
 
-    return result
+    return updated

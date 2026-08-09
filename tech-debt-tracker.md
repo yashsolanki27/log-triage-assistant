@@ -21,7 +21,11 @@ as reopened below).
 
 4. ~~**Docstring claims `OPENCODE_API_KEY` is used**~~ — CLOSED: `_get_api_keys` now states it reads the `OPENCODE_API_KEY` environment variable (comma-separated keys allowed, `OPENAI_API_KEY` fallback). Not debt.
 
-5. **`_apply_confidence_rule` mutates in-place and returns** — The function modifies `result` directly and also returns it, making the data flow harder to reason about (src/classifier.py). Debt not bug: functionally correct, stylistically inconsistent. Suggested fix: return a new dict and stop mutating the input (the 3bf400b fix did exactly this, but the v2.0 rewrite regressed it — reopened).
+5. ~~**`_apply_confidence_rule` mutates in-place and returns**~~ — CLOSED: the
+   function now copies the input (`dict(result)`) and returns a new dict, never
+   mutating the caller's data (src/classifier.py). Code-style rule added to
+   docs/patterns.md; regression tests `test_confidence_rule_does_not_mutate_input`
+   and `test_confidence_rule_returns_new_dict` restored as a fence.
 
 6. ~~**`base_url` points to `opencode.ai/zen/v1`**~~ — CLOSED: now configurable via `OPENCODE_BASE_URL` env var and documented in docs/tech-stack.md. Not debt.
 
