@@ -134,6 +134,44 @@ java.lang.NullPointerException: Cannot invoke method getStatus() on null object
 
     card.querySelector(".raw-text").textContent = result.raw_text || "";
 
+    const jiraBtn = card.querySelector(".btn-copy-jira");
+    if (jiraBtn) {
+      jiraBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const jiraText = `*LogPulse Triage RCA*
+*Category:* ${CATEGORY_LABELS[result.category] || result.category} (${Math.round(result.confidence)}% Confidence)
+*Extracted Error:* {noformat}${result.extracted_error_line || "—"}{noformat}
+*Root Cause Summary:* ${result.root_cause_summary || "—"}
+*Suggested Action:* ${result.suggested_action || "—"}
+${result.unclassified_reason ? `*Review Note:* ${result.unclassified_reason}` : ""}`.trim();
+        navigator.clipboard.writeText(jiraText).then(() => {
+          const span = jiraBtn.querySelector("span");
+          const original = span.textContent;
+          span.textContent = "Copied!";
+          setTimeout(() => (span.textContent = original), 1800);
+        });
+      });
+    }
+
+    const mdBtn = card.querySelector(".btn-copy-md");
+    if (mdBtn) {
+      mdBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const mdText = `### LogPulse Triage Report
+- **Category:** \`${result.category}\` (${Math.round(result.confidence)}% Confidence)
+- **Extracted Error:** \`${result.extracted_error_line || "—"}\`
+- **Root Cause:** ${result.root_cause_summary || "—"}
+- **Suggested Action:** ${result.suggested_action || "—"}
+${result.unclassified_reason ? `- **Note:** ${result.unclassified_reason}` : ""}`.trim();
+        navigator.clipboard.writeText(mdText).then(() => {
+          const span = mdBtn.querySelector("span");
+          const original = span.textContent;
+          span.textContent = "Copied!";
+          setTimeout(() => (span.textContent = original), 1800);
+        });
+      });
+    }
+
     return card;
   }
 
@@ -235,6 +273,26 @@ java.lang.NullPointerException: Cannot invoke method getStatus() on null object
     });
 
     document.getElementById("btn-refresh-history").addEventListener("click", loadHistory);
+
+    const searchInput = document.getElementById("history-search");
+    if (searchInput) {
+      searchInput.value = "";
+      searchInput.addEventListener("input", () => {
+        const query = searchInput.value.toLowerCase().trim();
+        if (!query) {
+          renderList(historyCache);
+        } else {
+          const filtered = historyCache.filter((item) =>
+            (item.extracted_error_line && item.extracted_error_line.toLowerCase().includes(query)) ||
+            (item.root_cause_summary && item.root_cause_summary.toLowerCase().includes(query)) ||
+            (item.suggested_action && item.suggested_action.toLowerCase().includes(query)) ||
+            (item.raw_text && item.raw_text.toLowerCase().includes(query)) ||
+            (item.category && item.category.toLowerCase().includes(query))
+          );
+          renderList(filtered);
+        }
+      });
+    }
 
     async function loadHistory() {
       list.innerHTML = `<p class="field-hint">Loading…</p>`;

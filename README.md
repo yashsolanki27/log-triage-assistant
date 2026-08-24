@@ -1,31 +1,35 @@
 # LogPulse
 
-An AI-powered OSS/BSS log classification tool that automates root cause analysis for telecom application support engineers. Paste a raw log excerpt, get an instant classification with confidence scoring, root cause summary, and suggested next action.
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Railway%20Production-3b82f6?style=for-the-badge&logo=railway)](https://elegant-charisma-production-127c.up.railway.app)
+[![Tests](https://img.shields.io/badge/Tests-97%20Passed-brightgreen?style=for-the-badge&logo=pytest)](https://github.com/yashsolanki27/log-triage-assistant)
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
+[![Groq](https://img.shields.io/badge/Inference-Groq%20Llama%203.3%20%2F%20GPT--OSS-orange?style=for-the-badge)](https://groq.com)
 
-Built with **FastAPI**, **OpenAI-compatible LLM (DeepSeek V4 Flash)**, **SQLite**, and a custom **vanilla HTML/CSS/JS** frontend with a premium dark theme.
+An AI-powered OSS/BSS log triage & root cause analysis platform designed for telecom application support engineers. Paste raw logs from order provisioning, network nodes, and API gateways to receive instant classification, confidence scores, root cause explanations, and 1-click Jira/ServiceNow ticket exports.
+
+🔗 **Live Production URL:** [https://elegant-charisma-production-127c.up.railway.app](https://elegant-charisma-production-127c.up.railway.app)
 
 ---
 
 ## Overview
 
-Telecom support engineers spend hours manually reading logs, identifying error patterns, and determining next steps. This tool eliminates that bottleneck — paste a log, get an instant triage result backed by an LLM classification pipeline.
-
-**Target Users:** Telecom / OSS-BSS application support engineers working with order processing, provisioning, and API integration systems (ISAP, OFM, Huawei, Azure AD).
+Telecom application support engineers spend significant time reading logs, diagnosing stack traces, and determining root causes across complex enterprise stacks (ISAP, OFM, Huawei, CRM bridges). **LogPulse** automates this triage workflow:
+1. Extracts the primary diagnostic error line from unstructured logs.
+2. Classifies the incident against a 5-part OSS/BSS root-cause taxonomy with confidence scoring.
+3. Generates plain-English root causes, concrete next actions, and 1-click Jira ticket exports.
 
 ---
 
 ## Features
 
-- **LLM-Powered Classification** — Classifies logs against a 5-category error taxonomy using an LLM
-- **Multi-Key Failover** — Set `OPENCODE_API_KEY=key1,key2,key3`; blocked or rate-limited keys auto-swap to the next one
-- **Confidence Scoring** — Every result includes a confidence percentage with a hard <70% safety threshold
-- **Root Cause Analysis** — Plain English explanation of what went wrong
-- **Suggested Actions** — Actionable next steps for each classified error
-- **Classification History** — Browse, filter, and review all past triages
-- **Analytics Dashboard** — Category distribution donut chart, 14-day volume trend, aggregate stats
-- **45 Sample Logs** — Real-world OSS/BSS log samples across all 5 categories
-- **RESTful API** — Full CRUD endpoints for integration with existing tooling
-- **Responsive Dark Theme** — Custom OLED dark theme with Space Grotesk / JetBrains Mono typography
+- **⚡ Sub-Second LLM Classification** — High-speed inference via Groq (Llama 3.3 70B / GPT-OSS) with multi-key failover
+- **📋 1-Click Ticket Exporters** — Instant copy to Jira ticket comments and Slack/Markdown summaries
+- **🔍 History Search & Category Filtering** — Search past triages by Order ID, Node ID, or error message
+- **🛡️ Self-Enforcing Confidence Threshold** — Below 70% confidence automatically routes to `unclassified` with a human review note
+- **📊 Operational Dashboard** — Category distribution donut chart, 14-day volume trends, and triage statistics
+- **📚 45 Curated Telecom Scenarios** — Real-world OSS/BSS log library (BSNL 100M+ subscriber scenarios, DSLAM/OLT configs, CRM-OSS bridges)
+- **🧪 97 Passing Unit & Integration Tests** — Full test coverage across parser, storage, API, and error handling
+- **🎨 Responsive Dark UI** — Fast, dependency-free vanilla SPA with JetBrains Mono / Space Grotesk typography
 
 ---
 

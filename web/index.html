@@ -132,7 +132,7 @@
       </div>
     </header>
 
-    <div class="toolbar">
+    <div class="toolbar" style="gap: 12px; flex-wrap: wrap;">
       <div class="chip-group" id="category-filters" role="group" aria-label="Filter by category">
         <button class="chip is-active" data-cat="">All</button>
         <button class="chip" data-cat="next-tache-error"><span class="dot" style="--dot: var(--cat-next-tache)"></span>Next-tâche</button>
@@ -141,7 +141,10 @@
         <button class="chip" data-cat="api-integration-error"><span class="dot" style="--dot: var(--cat-api)"></span>API-integration</button>
         <button class="chip" data-cat="unclassified"><span class="dot" style="--dot: var(--cat-unclassified)"></span>Unclassified</button>
       </div>
-      <button class="btn btn-ghost btn-sm" id="btn-refresh-history">Refresh</button>
+      <div style="display:flex; gap:8px; margin-left:auto; align-items:center;">
+        <input type="text" id="history-search" class="modal-search" placeholder="Search past logs..." style="padding:6px 12px; font-size:13px; max-width:220px;" />
+        <button class="btn btn-ghost btn-sm" id="btn-refresh-history">Refresh</button>
+      </div>
     </div>
 
     <div id="history-list" class="history-list"></div>
@@ -213,6 +216,18 @@
       <div class="result-block unclassified-block" hidden>
         <p class="result-block-label">Why unclassified</p>
         <p class="unclassified-text"></p>
+      </div>
+      <div class="result-block" style="padding-top:4px;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="btn btn-ghost btn-sm btn-copy-jira">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+            <span>Copy Jira RCA</span>
+          </button>
+          <button type="button" class="btn btn-ghost btn-sm btn-copy-md">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span>Copy Markdown</span>
+          </button>
+        </div>
       </div>
     </div>
 
