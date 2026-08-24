@@ -161,7 +161,7 @@ def classify_log(parsed: dict, client: OpenAI | None = None) -> dict:
 
             response = openai_client.chat.completions.create(**kwargs)
             text = response.choices[0].message.content
-            return _apply_confidence_rule(_parse_llm_json(text))
+            return _apply_confidence_rule(_parse_llm_json(text), parsed.get("raw_text", ""))
         except OpenAIError as exc:
             last_error = exc
             if client is not None:
@@ -173,6 +173,32 @@ def classify_log(parsed: dict, client: OpenAI | None = None) -> dict:
     raise RuntimeError(
         f"All configured LLM API keys failed (last error: {last_error})"
     ) from last_error
+
+
+def _generate_sop_command(category: str, raw_text: str = "") -> str | None:
+    """Generate an actionable standard operating procedure (SOP) command."""
+    if category == "unclassified":
+        return None
+
+    # Extract common telecom identifiers if present
+    order_match = re.search(r"\b(ORD-\d+)\b", raw_text, re.IGNORECASE)
+    order_id = order_match.group(1).upper() if order_match else "$ORDER_ID"
+
+    node_match = re.search(r"\b(DSLAM-[A-Za-z0-9_-]+|OLT-[A-Za-z0-9_-]+|BNG-[A-Za-z0-9_-]+|LMG-[A-Za-z0-9_-]+)\b", raw_text, re.IGNORECASE)
+    node_id = node_match.group(1).upper() if node_match else "$NODE_ID"
+
+    ticket_match = re.search(r"\b(TCK-\d+|ticket_ref=[A-Za-z0-9_-]+)\b", raw_text, re.IGNORECASE)
+    ticket_id = ticket_match.group(1).replace("ticket_ref=", "").upper() if ticket_match else "$TICKET_ID"
+
+    if category == "next-tache-error":
+        return f"o2a-engine-cli --order-id {order_id} --reset-tache-sequence --force-prereq-check"
+    elif category == "state-transition-block":
+        return f"crm-bridge-ctl --resync --order {order_id} --clear-state-lock --reset-wait-timer"
+    elif category == "provisioning-fault":
+        return f"dslam-provisioner --node {node_id} --sync-firmware --validate-geo-params"
+    elif category == "api-integration-error":
+        return f"isap-gateway-ctl --flush-connection-pool --replay-payload --ticket {ticket_id}"
+    return None
 
 
 def _parse_llm_json(text: str) -> dict:
@@ -196,7 +222,7 @@ def _parse_llm_json(text: str) -> dict:
     return data
 
 
-def _apply_confidence_rule(result: dict) -> dict:
+def _apply_confidence_rule(result: dict, raw_text: str = "") -> dict:
     """Enforce the business rule as a safety net, even if the model didn't.
 
     <70% confidence must always surface as unclassified with a reason —
@@ -210,6 +236,7 @@ def _apply_confidence_rule(result: dict) -> dict:
       - low confidence (<70) forces category=unclassified
       - the unclassified_reason always explains the below-threshold note
       - category=unclassified always carries a non-empty reason
+      - classified categories carry an actionable sop_command
     """
     updated = dict(result)
     category = updated.get("category")
@@ -242,5 +269,8 @@ def _apply_confidence_rule(result: dict) -> dict:
 
     if updated["category"] != "unclassified":
         updated["unclassified_reason"] = None
+        updated["sop_command"] = _generate_sop_command(updated["category"], raw_text)
+    else:
+        updated["sop_command"] = None
 
     return updated

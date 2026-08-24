@@ -103,6 +103,7 @@ def test_pipeline_end_to_end():
             "confidence",
             "suggested_action",
             "unclassified_reason",
+            "sop_command",
         }
         # Confidence below threshold forces unclassified
         if confidence < 70:

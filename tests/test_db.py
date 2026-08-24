@@ -149,3 +149,11 @@ def test_save_triage_with_unclassified_reason(db):
     saved = db.save_triage(_make_parsed(), result)
     fetched = db.get_triage(saved["id"])
     assert fetched["unclassified_reason"] == "Low confidence"
+
+
+def test_save_and_get_triage_sop_command(db):
+    result = _make_result("provisioning-fault", 88)
+    result["sop_command"] = "dslam-provisioner --node DSLAM-1 --sync-firmware"
+    saved = db.save_triage(_make_parsed(), result)
+    fetched = db.get_triage(saved["id"])
+    assert fetched["sop_command"] == "dslam-provisioner --node DSLAM-1 --sync-firmware"

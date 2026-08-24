@@ -102,8 +102,10 @@
           placeholder="2024-03-15 10:23:45 ERROR [order-service] - Processing failed&#10;java.lang.NullPointerException: Cannot invoke method getStatus() on null object&#10;    at com.example.OrderProcessor.process(OrderProcessor.java:142)"
           spellcheck="false" required></textarea>
         <div class="field-row">
-          <p class="field-hint" id="char-count">0 characters</p>
+          <p class="field-hint" id="char-count">0 characters · Drag & drop a .log file here</p>
           <div class="field-actions">
+            <input type="file" id="log-file-input" accept=".log,.txt,.json,.xml" style="display:none;" />
+            <button type="button" class="btn btn-ghost" id="btn-upload">Upload file</button>
             <button type="button" class="btn btn-ghost" id="btn-sample">Load sample</button>
             <button type="button" class="btn btn-ghost" id="btn-browse-samples">Browse All Samples</button>
             <button type="button" class="btn btn-ghost" id="btn-clear">Clear</button>
@@ -212,6 +214,15 @@
       <div class="result-block">
         <p class="result-block-label">Suggested action</p>
         <p class="action-text"></p>
+      </div>
+      <div class="result-block sop-block" hidden>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <p class="result-block-label" style="margin:0;">Standard Operating Procedure (SOP Runbook)</p>
+          <button type="button" class="btn btn-ghost btn-sm btn-copy-sop" style="font-size:11.5px; padding:2px 8px;">
+            <span>Copy Command</span>
+          </button>
+        </div>
+        <pre class="mono-line sop-command-text" style="color:var(--accent-strong); background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.2); padding:8px 12px; border-radius:6px; overflow-x:auto; font-size:12.5px; margin:0;"></pre>
       </div>
       <div class="result-block unclassified-block" hidden>
         <p class="result-block-label">Why unclassified</p>

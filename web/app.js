@@ -132,7 +132,28 @@ java.lang.NullPointerException: Cannot invoke method getStatus() on null object
       card.querySelector(".unclassified-text").textContent = result.unclassified_reason;
     }
 
-    card.querySelector(".raw-text").textContent = result.raw_text || "";
+    const sopBlock = card.querySelector(".sop-block");
+    if (sopBlock && result.sop_command) {
+      sopBlock.hidden = false;
+      card.querySelector(".sop-command-text").textContent = result.sop_command;
+      const copySopBtn = card.querySelector(".btn-copy-sop");
+      if (copySopBtn) {
+        copySopBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          navigator.clipboard.writeText(result.sop_command).then(() => {
+            const span = copySopBtn.querySelector("span");
+            const original = span.textContent;
+            span.textContent = "Copied!";
+            setTimeout(() => (span.textContent = original), 1800);
+          });
+        });
+      }
+    }
+
+    const rawBlock = card.querySelector(".raw-text");
+    if (rawBlock) {
+      rawBlock.innerHTML = highlightLogSyntax(result.raw_text || "");
+    }
 
     const jiraBtn = card.querySelector(".btn-copy-jira");
     if (jiraBtn) {
@@ -143,6 +164,7 @@ java.lang.NullPointerException: Cannot invoke method getStatus() on null object
 *Extracted Error:* {noformat}${result.extracted_error_line || "—"}{noformat}
 *Root Cause Summary:* ${result.root_cause_summary || "—"}
 *Suggested Action:* ${result.suggested_action || "—"}
+${result.sop_command ? `*SOP Runbook Command:* {noformat}${result.sop_command}{noformat}` : ""}
 ${result.unclassified_reason ? `*Review Note:* ${result.unclassified_reason}` : ""}`.trim();
         navigator.clipboard.writeText(jiraText).then(() => {
           const span = jiraBtn.querySelector("span");
@@ -162,6 +184,7 @@ ${result.unclassified_reason ? `*Review Note:* ${result.unclassified_reason}` : 
 - **Extracted Error:** \`${result.extracted_error_line || "—"}\`
 - **Root Cause:** ${result.root_cause_summary || "—"}
 - **Suggested Action:** ${result.suggested_action || "—"}
+${result.sop_command ? `- **SOP Runbook:** \`${result.sop_command}\`` : ""}
 ${result.unclassified_reason ? `- **Note:** ${result.unclassified_reason}` : ""}`.trim();
         navigator.clipboard.writeText(mdText).then(() => {
           const span = mdBtn.querySelector("span");
@@ -173,6 +196,19 @@ ${result.unclassified_reason ? `- **Note:** ${result.unclassified_reason}` : ""}
     }
 
     return card;
+  }
+
+  function highlightLogSyntax(raw) {
+    if (!raw) return "";
+    let escaped = escapeHtml(raw);
+    escaped = escaped.replace(/\b(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)\b/g, '<span style="color:#79c0ff;">$1</span>');
+    escaped = escaped.replace(/\b(FATAL|CRITICAL|ERROR)\b/g, '<span style="color:#ff7b72; font-weight:600;">$1</span>');
+    escaped = escaped.replace(/\b(WARN|WARNING)\b/g, '<span style="color:#d29922; font-weight:600;">$1</span>');
+    escaped = escaped.replace(/\b(INFO|DEBUG|TRACE)\b/g, '<span style="color:#7ee787;">$1</span>');
+    escaped = escaped.replace(/\b([A-Za-z0-9_]+(?:Exception|Error))\b/g, '<span style="color:#d2a8ff; font-weight:600;">$1</span>');
+    escaped = escaped.replace(/(\[[A-Za-z0-9_-]+\])/g, '<span style="color:#ffa657;">$1</span>');
+    escaped = escaped.replace(/\b([a-zA-Z_]+)=([^\s,]+)/g, '<span style="color:#a5d6ff;">$1</span>=<span style="color:#7ee787;">$2</span>');
+    return escaped;
   }
 
   // ---------------------------------------------------------------------
@@ -189,14 +225,56 @@ ${result.unclassified_reason ? `- **Note:** ${result.unclassified_reason}` : ""}
     const submitBtn = document.getElementById("btn-submit");
     const errorBox = document.getElementById("triage-error");
     const resultPanel = document.getElementById("result-panel");
+    const fileInput = document.getElementById("log-file-input");
+    const uploadBtn = document.getElementById("btn-upload");
 
     textarea.addEventListener("input", () => {
-      charCount.textContent = `${textarea.value.length} characters`;
+      charCount.textContent = `${textarea.value.length} characters · Drag & drop a .log file here`;
     });
 
     textarea.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
         form.requestSubmit();
+      }
+    });
+
+    if (uploadBtn && fileInput) {
+      uploadBtn.addEventListener("click", () => fileInput.click());
+      fileInput.addEventListener("change", (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            textarea.value = evt.target.result || "";
+            textarea.dispatchEvent(new Event("input"));
+            textarea.focus();
+          };
+          reader.readAsText(file);
+        }
+      });
+    }
+
+    textarea.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      textarea.style.borderColor = "var(--accent)";
+    });
+
+    textarea.addEventListener("dragleave", () => {
+      textarea.style.borderColor = "";
+    });
+
+    textarea.addEventListener("drop", (e) => {
+      e.preventDefault();
+      textarea.style.borderColor = "";
+      const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          textarea.value = evt.target.result || "";
+          textarea.dispatchEvent(new Event("input"));
+          textarea.focus();
+        };
+        reader.readAsText(file);
       }
     });
 

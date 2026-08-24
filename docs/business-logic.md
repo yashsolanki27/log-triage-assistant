@@ -185,3 +185,17 @@ Log entry
 ## Confidence rule
 
 Model must output confidence score. <70% → category = unclassified, do not guess.
+
+---
+
+## Standard Operating Procedure (SOP) Runbook Commands
+
+For valid classifications, the classifier automatically matches and outputs an actionable enterprise telecom CLI command (`sop_command`), binding extracted entities (`$ORDER_ID`, `$NODE_ID`, `$TICKET_ID`):
+
+| Category | SOP Runbook Command Template | Target System |
+| :--- | :--- | :--- |
+| `next-tache-error` | `o2a-engine-cli --order-id {order_id} --reset-tache-sequence --force-prereq-check` | OrderEngine O2A Orchestrator |
+| `state-transition-block` | `crm-bridge-ctl --resync --order {order_id} --clear-state-lock --reset-wait-timer` | CRM-OSS State Transition Gateway |
+| `provisioning-fault` | `dslam-provisioner --node {node_id} --sync-firmware --validate-geo-params` | Network Element Provisioner |
+| `api-integration-error` | `isap-gateway-ctl --flush-connection-pool --replay-payload --ticket {ticket_id}` | ISAP / External API Proxy |
+| `unclassified` | `null` | N/A (Manual Human Review) |

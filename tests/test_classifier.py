@@ -123,6 +123,18 @@ def test_confidence_rule_returns_new_dict():
     result = _apply_confidence_rule(original)
     assert result is not original
     assert result["category"] == "next-tache-error"
+    assert "o2a-engine-cli" in result["sop_command"]
+
+
+def test_generate_sop_command_categories():
+    from src.classifier import _generate_sop_command
+
+    assert "reset-tache-sequence" in _generate_sop_command("next-tache-error", "ORD-12345 error")
+    assert "ORD-12345" in _generate_sop_command("next-tache-error", "ORD-12345 error")
+    assert "crm-bridge-ctl" in _generate_sop_command("state-transition-block", "ORD-99999 timeout")
+    assert "dslam-provisioner" in _generate_sop_command("provisioning-fault", "DSLAM-44402 config error")
+    assert "isap-gateway-ctl" in _generate_sop_command("api-integration-error", "ticket_ref=TCK-5512")
+    assert _generate_sop_command("unclassified", "some garbage log") is None
 
 
 # ---------------------------------------------------------------------------
@@ -208,7 +220,7 @@ def test_classify_rotates_to_next_key_on_auth_error(monkeypatch):
         patch("src.classifier._get_api_keys", return_value=keys),
         patch("src.classifier._build_client", side_effect=fake_build_client),
         patch("src.classifier._parse_llm_json", return_value=payload),
-        patch("src.classifier._apply_confidence_rule", side_effect=lambda r: r),
+        patch("src.classifier._apply_confidence_rule", side_effect=lambda *a, **k: a[0]),
     ):
         result = classify_log(parsed)
 
@@ -229,7 +241,7 @@ def test_classify_raises_when_all_keys_fail(monkeypatch):
         patch("src.classifier._get_api_keys", return_value=keys),
         patch("src.classifier._build_client", side_effect=fake_build_client),
         patch("src.classifier._parse_llm_json", return_value={}),
-        patch("src.classifier._apply_confidence_rule", side_effect=lambda r: r),
+        patch("src.classifier._apply_confidence_rule", side_effect=lambda *a, **k: a[0]),
     ):
         with pytest.raises(RuntimeError, match="All configured LLM API keys failed"):
             classify_log(parsed)
@@ -243,7 +255,7 @@ def test_classify_single_key_failure_raises(monkeypatch):
         patch("src.classifier._get_api_keys", return_value=["only-key"]),
         patch("src.classifier._build_client", side_effect=lambda k: _client_that_fails_with(RateLimitError)),
         patch("src.classifier._parse_llm_json", return_value={}),
-        patch("src.classifier._apply_confidence_rule", side_effect=lambda r: r),
+        patch("src.classifier._apply_confidence_rule", side_effect=lambda *a, **k: a[0]),
     ):
         with pytest.raises(RuntimeError, match="All configured LLM API keys failed"):
             classify_log(parsed)
@@ -291,7 +303,7 @@ def test_classify_rotates_to_next_key_on_bad_request_error(monkeypatch):
         patch("src.classifier._get_api_keys", return_value=keys),
         patch("src.classifier._build_client", side_effect=fake_build_client),
         patch("src.classifier._parse_llm_json", return_value=payload),
-        patch("src.classifier._apply_confidence_rule", side_effect=lambda r: r),
+        patch("src.classifier._apply_confidence_rule", side_effect=lambda *a, **k: a[0]),
     ):
         result = classify_log(parsed)
 

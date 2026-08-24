@@ -70,6 +70,7 @@ class TriageResult(BaseModel):
     confidence: int
     suggested_action: str
     unclassified_reason: Optional[str] = None
+    sop_command: Optional[str] = None
 
     @model_validator(mode="after")
     def validate_unclassified_reason(self) -> "TriageResult":

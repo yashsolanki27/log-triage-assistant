@@ -26,8 +26,11 @@ CREATE TABLE IF NOT EXISTS triages (
     root_cause_summary TEXT NOT NULL,
     confidence INTEGER NOT NULL,
     suggested_action TEXT NOT NULL,
-    unclassified_reason TEXT
+    unclassified_reason TEXT,
+    sop_command TEXT
 );
+CREATE INDEX IF NOT EXISTS idx_triages_category ON triages(category);
+CREATE INDEX IF NOT EXISTS idx_triages_created_at ON triages(created_at);
 """
 
 
@@ -45,7 +48,15 @@ def _connect():
 
 def init_db() -> None:
     with _connect() as conn:
-        conn.execute(SCHEMA)
+        try:
+            conn.execute("PRAGMA journal_mode=WAL;")
+        except sqlite3.OperationalError:
+            pass
+        conn.executescript(SCHEMA)
+        try:
+            conn.execute("ALTER TABLE triages ADD COLUMN sop_command TEXT")
+        except sqlite3.OperationalError:
+            pass  # column already exists
 
 
 def save_triage(parsed: dict, result: dict) -> dict:
@@ -56,8 +67,8 @@ def save_triage(parsed: dict, result: dict) -> dict:
             """
             INSERT INTO triages (
                 created_at, raw_text, extracted_error_line, category,
-                root_cause_summary, confidence, suggested_action, unclassified_reason
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                root_cause_summary, confidence, suggested_action, unclassified_reason, sop_command
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 created_at,
@@ -68,6 +79,7 @@ def save_triage(parsed: dict, result: dict) -> dict:
                 result["confidence"],
                 result["suggested_action"],
                 result.get("unclassified_reason"),
+                result.get("sop_command"),
             ),
         )
         row_id = cursor.lastrowid

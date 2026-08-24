@@ -61,3 +61,8 @@ depends on both) → Unit 4 (API) → Unit 5 (UI, depends on API).
 - [x] Unit 6: Deployment — Procfile + railway.json, /health liveness probe,
       TRIAGE_DB_PATH env override for a persistent volume, .env.example,
       /sample-logs unified on data/sample_logs.py (single source of truth).
+
+- [x] Unit 7: Enterprise Ops Upgrade (v1.2) — Runbook SOP matching, drag-and-drop log upload, syntax highlighting, and legacy cleanup.
+      1. Business Logic / Classifier: Standard Operating Procedure (SOP) runbook command generation based on category + entity detection (order_id, node_id, ticket_ref).
+      2. UI: Drag & drop file upload for .log/.txt files, SOP command block with 1-click copy, and log syntax highlighter.
+      3. Cleanup: Removed deprecated Streamlit app files and streamlit dependency from requirements.txt.
