@@ -206,8 +206,8 @@ java.lang.NullPointerException: Cannot invoke method getStatus() on null object
 
   function describeError(err) {
     const msg = err && err.message ? err.message : "Something went wrong.";
-    if (msg.includes("OPENCODE_API_KEY")) {
-      return "The classifier isn't configured yet — set OPENCODE_API_KEY on the server and restart the API.";
+    if (msg.includes("API key configured") || msg.includes("API_KEY") || msg.includes("OPENCODE_API_KEY") || msg.includes("GROQ_API_KEY")) {
+      return "The classifier isn't configured yet — set GROQ_API_KEY (or OPENCODE_API_KEY / OPENAI_API_KEY) on the server.";
     }
     if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
       return "Couldn't reach the API. Confirm the backend is running.";

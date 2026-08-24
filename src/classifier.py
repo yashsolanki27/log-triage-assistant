@@ -13,7 +13,7 @@ import os
 import re
 
 from dotenv import load_dotenv
-from openai import AuthenticationError, OpenAI, RateLimitError
+from openai import OpenAI, OpenAIError
 
 from src.prompts import build_classification_prompt
 
@@ -36,22 +36,54 @@ _key_index = 0
 def _get_api_keys() -> list[str]:
     """Ordered list of API keys to try.
 
-    OPENCODE_API_KEY may hold a single key or a comma-separated list
+    Checks GROQ_API_KEY, OPENCODE_API_KEY, and OPENAI_API_KEY in order.
+    Each variable may hold a single key or a comma-separated list
     (e.g. "key1,key2,key3") for automatic failover when one key is
-    rate-limited or revoked. Falls back to OPENAI_API_KEY if unset.
+    rate-limited or revoked.
     """
-    raw = os.environ.get("OPENCODE_API_KEY", "").strip()
-    keys = [k.strip() for k in raw.split(",") if k.strip()]
-    if not keys:
-        fallback = os.environ.get("OPENAI_API_KEY", "").strip()
-        if fallback:
-            keys = [fallback]
-    return keys
+    for env_var in ("GROQ_API_KEY", "OPENCODE_API_KEY", "OPENAI_API_KEY"):
+        raw = os.environ.get(env_var, "").strip()
+        keys = [k.strip() for k in raw.split(",") if k.strip()]
+        if keys:
+            return keys
+    return []
+
+
+def _get_base_url(api_key: str = "") -> str:
+    """Determine the base URL for the LLM client based on the active key / provider."""
+    if api_key.startswith("gsk_") or (os.environ.get("GROQ_API_KEY") and not api_key.startswith("sk-")):
+        return os.environ.get("GROQ_BASE_URL", "").strip() or "https://api.groq.com/openai/v1"
+
+    if os.environ.get("OPENCODE_BASE_URL", "").strip():
+        return os.environ["OPENCODE_BASE_URL"].strip()
+
+    if os.environ.get("OPENAI_BASE_URL", "").strip():
+        return os.environ["OPENAI_BASE_URL"].strip()
+
+    return "https://opencode.ai/zen/v1"
+
+
+def _get_default_model(base_url: str) -> str:
+    """Determine the default model name based on configured model or base URL."""
+    if "groq.com" in base_url:
+        groq_model = os.environ.get("GROQ_MODEL_NAME", "").strip()
+        if groq_model:
+            return groq_model
+        configured = os.environ.get("LLM_MODEL_NAME", "").strip()
+        if configured and any(name in configured.lower() for name in ("gpt-oss", "qwen", "llama", "mixtral", "gemma", "deepseek-r1")):
+            return configured
+        return "openai/gpt-oss-120b"
+
+    if os.environ.get("LLM_MODEL_NAME"):
+        return os.environ["LLM_MODEL_NAME"].strip()
+
+    return "deepseek-v4-flash-free"
 
 
 def _build_client(api_key: str) -> OpenAI:
-    base_url = os.environ.get("OPENCODE_BASE_URL", "https://opencode.ai/zen/v1")
-    return OpenAI(api_key=api_key, base_url=base_url)
+    base_url = _get_base_url(api_key)
+    timeout = float(os.environ.get("LLM_TIMEOUT", "30.0"))
+    return OpenAI(api_key=api_key, base_url=base_url, timeout=timeout)
 
 
 def _get_client() -> OpenAI:
@@ -59,8 +91,8 @@ def _get_client() -> OpenAI:
     keys = _get_api_keys()
     if not keys:
         raise RuntimeError(
-            "OPENCODE_API_KEY is not set. Export it or add it to a .env file "
-            "before starting the API (see .env.example)."
+            "No LLM API key configured. Set GROQ_API_KEY (or OPENCODE_API_KEY / "
+            "OPENAI_API_KEY) in your environment or .env file (see .env.example)."
         )
     if _client is None:
         _client = _build_client(keys[min(_key_index, len(keys) - 1)])
@@ -97,7 +129,7 @@ def classify_log(parsed: dict, client: OpenAI | None = None) -> dict:
             extracted_error_line.
         client: Optional OpenAI client to use (used by live tests to inject
             a real client). When omitted, the shared client is used and
-            configured keys are rotated on auth/rate-limit failures.
+            configured keys are rotated on auth/rate-limit/API failures.
 
     Returns:
         Dict with keys: category, root_cause_summary, confidence,
@@ -112,20 +144,25 @@ def classify_log(parsed: dict, client: OpenAI | None = None) -> dict:
         raise ValueError("parsed must contain non-empty raw_text")
 
     prompt = build_classification_prompt(parsed["raw_text"])
-    model = os.environ.get("LLM_MODEL_NAME", "deepseek-v4-flash-free")
 
     last_error = None
     while True:
         openai_client = client if client is not None else _get_client()
+        base_url = str(getattr(openai_client, "base_url", ""))
+        model = _get_default_model(base_url)
         try:
-            response = openai_client.chat.completions.create(
-                model=model,
-                max_tokens=1000,
-                messages=[{"role": "user", "content": prompt}],
-            )
+            kwargs = {
+                "model": model,
+                "max_tokens": 1000,
+                "messages": [{"role": "user", "content": prompt}],
+            }
+            if "groq.com" in base_url or "openai.com" in base_url:
+                kwargs["response_format"] = {"type": "json_object"}
+
+            response = openai_client.chat.completions.create(**kwargs)
             text = response.choices[0].message.content
             return _apply_confidence_rule(_parse_llm_json(text))
-        except (AuthenticationError, RateLimitError) as exc:
+        except OpenAIError as exc:
             last_error = exc
             if client is not None:
                 raise RuntimeError(f"LLM request failed: {exc}") from exc
@@ -139,8 +176,9 @@ def classify_log(parsed: dict, client: OpenAI | None = None) -> dict:
 
 
 def _parse_llm_json(text: str) -> dict:
-    """Strip markdown fences if present and parse JSON, with a clear error."""
+    """Strip markdown fences and thinking tags if present and parse JSON."""
     cleaned = text.strip()
+    cleaned = re.sub(r"<think>.*?</think>", "", cleaned, flags=re.DOTALL).strip()
     cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
     cleaned = re.sub(r"\s*```$", "", cleaned)
 

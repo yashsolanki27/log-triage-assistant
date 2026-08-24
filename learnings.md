@@ -59,3 +59,43 @@ the next key on auth/rate-limit errors instead of failing on the first one
 (cover: test_classify_rotates_to_next_key_on_auth_error). Lesson: an
 auto-switch makes the free-tier key rotation survivable without code changes —
 worth keeping in mind for any LLM-backed integration.
+
+## 2026-08-09 — second entry (first real run-loop cycle, items 1,2,5,8,9)
+
+### A real run caught a failure --dry-run cannot simulate: item 1 "completed" with no fix
+Items 2, 5, 8, 9 closed with real, committed fixes; item 1 did NOT. The item-1
+agent (tasked with the `is_fallback` flag) instead committed item #2's NUL-byte
+guard — branch `fix/parser-binary-input`, commit cde78eb — closed item #2 in the
+tracker, exited 0, and left a clean tree. run_agent returned 0, so the loop
+marked item 1 done. Today `src/parser.py` still has `_extract_error_line(text)
+-> str` with no fallback flag, and tech-debt-tracker.md still lists item 1 as
+reopened — but the done file now skips it forever.
+The TASK 1 exit-code fix (agent exit code primary, clean tree only a secondary
+sanity check) did not catch this: it can only distinguish "agent finished and
+committed" from "agent failed or left a dirty tree". It cannot tell "committed
+the right fix" from "committed a different item's fix". --dry-run is even
+blinder — its mock agent only varies exit codes, so it never exercises a
+wrong-but-successful commit. Lesson: when the loop's contract is "close the
+tracker item", success must be verified against the item itself (tracker line
+flipped to closed, or the described change present in code), not just exit code
++ clean tree.
+
+### Real agents ride a feature-branch chain, not a stable base
+Per Tip 10 every agent checked out a new branch — fix/parser-binary-input →
+fix/confidence-rule-no-mutation → fix/unclassified-reason-validator →
+fix/business-logic-category-docs — each forked from the previous agent's HEAD.
+The final HEAD is one chained line containing items 2,5,8,9 (plus the review
+commit), but the loop's "done" knowledge lives only in .run-loop-state/done, not
+in branch history. On the next cycle the base branch is wherever the last agent
+left it. Worth deciding deliberately: run the loop on a dedicated working branch
+and merge per cycle, rather than letting agent-created branches be the only
+record.
+
+### Timing and environment artifacts the real run surfaced
+Each item's `opencode run` took minutes (context load + LLM latency) vs.
+instant --dry-run exits; agents reported 82 passed mid-run, and the final
+post-run count was 93 passed, 10 deselected. Windows gotcha: writing
+.run-loop-state files with PowerShell `Set-Content` emits CRLF, and
+`$((n + 1))` in next_iteration dies on the trailing `\r` ("invalid arithmetic
+operator"). The loop is bash and expects LF state files — create state files
+from bash (or let the loop's own defaults write them), not from PowerShell.

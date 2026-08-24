@@ -177,6 +177,8 @@ while true; do
             exit_code=$agent_exit
         elif [[ -n "$(git status --porcelain)" ]]; then
             exit_code=1   # agent claims success but left dirty tree — suspicious
+        elif ! grep -qE "^${next_item}\..*CLOSED" "$ITEMS_FILE"; then
+            exit_code=1   # tree clean, agent exited 0, but THIS item's line never flipped
         else
             exit_code=0
         fi

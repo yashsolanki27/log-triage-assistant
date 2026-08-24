@@ -74,19 +74,23 @@ see `docs/business-logic.md`
 | Layer | Technology | Notes |
 |-------|-----------|-------|
 | Backend | Python 3.11+, FastAPI | `src/api.py` |
-| LLM | OpenCode Zen (DeepSeek V4 Flash Free) | Single classification call |
+| LLM | Groq (Llama 3.3 70B Versatile) / OpenCode Zen / OpenAI | Single classification call |
 | Frontend | Vanilla HTML/CSS/JS SPA | `web/` — dark theme, no build step |
 | Storage | SQLite (stdlib) | `data/triage.db`, override via `TRIAGE_DB_PATH` |
-| Testing | pytest | 82 tests, all passing (70 unit + 12 live, opt-in) |
-| Hosting | Railway | `railway.json` + `Procfile` |
+| Testing | pytest | 97 unit tests passing (+ 10 live, opt-in) |
+| Hosting | Railway / Render | `railway.json` + `Procfile` |
 
 ### Environment variables
 
 | Variable | Default | Required |
 |----------|---------|----------|
-| `OPENCODE_API_KEY` | — | Yes (falls back to `OPENAI_API_KEY`) |
+| `GROQ_API_KEY` | — | Optional (Recommended free provider) |
+| `OPENCODE_API_KEY` | — | Optional (falls back to `OPENAI_API_KEY`) |
+| `OPENAI_API_KEY` | — | Optional |
+| `GROQ_BASE_URL` | `https://api.groq.com/openai/v1` | No |
 | `OPENCODE_BASE_URL` | `https://opencode.ai/zen/v1` | No |
-| `LLM_MODEL_NAME` | `deepseek-v4-flash-free` | No |
+| `LLM_MODEL_NAME` | `llama-3.3-70b-versatile` (Groq) | No |
+| `LLM_TIMEOUT` | `30.0` | No |
 | `TRIAGE_DB_PATH` | `./data/triage.db` | No (persistent volume in prod) |
 
 ---

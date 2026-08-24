@@ -5,11 +5,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from openai import AuthenticationError, RateLimitError
+from openai import AuthenticationError, BadRequestError, OpenAIError, RateLimitError
 
 from src.classifier import (
     _apply_confidence_rule,
     _get_api_keys,
+    _get_base_url,
+    _get_default_model,
     _parse_llm_json,
     classify_log,
 )
@@ -129,12 +131,15 @@ def test_confidence_rule_returns_new_dict():
 
 
 @pytest.fixture(autouse=True)
-def _reset_classifier_state():
-    """Clear cached client + key index between tests (module-level globals)."""
+def _reset_classifier_state(monkeypatch):
+    """Clear cached client + key index and env keys between tests (module-level globals)."""
     import src.classifier as classifier
 
     classifier._client = None
     classifier._key_index = 0
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.delenv("OPENCODE_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     yield
     classifier._client = None
     classifier._key_index = 0
@@ -147,12 +152,10 @@ def test_get_api_keys_splits_comma_separated(monkeypatch):
 
 def test_get_api_keys_single_key(monkeypatch):
     monkeypatch.setenv("OPENCODE_API_KEY", "only-key")
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     assert _get_api_keys() == ["only-key"]
 
 
 def test_get_api_keys_falls_back_to_openai_key(monkeypatch):
-    monkeypatch.delenv("OPENCODE_API_KEY", raising=False)
     monkeypatch.setenv("OPENAI_API_KEY", "openai-fallback")
     assert _get_api_keys() == ["openai-fallback"]
 
@@ -244,3 +247,54 @@ def test_classify_single_key_failure_raises(monkeypatch):
     ):
         with pytest.raises(RuntimeError, match="All configured LLM API keys failed"):
             classify_log(parsed)
+
+
+def test_get_api_keys_groq_priority(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "groq-key")
+    monkeypatch.setenv("OPENCODE_API_KEY", "opencode-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "openai-key")
+    assert _get_api_keys() == ["groq-key"]
+
+
+def test_get_base_url_groq_defaults(monkeypatch):
+    monkeypatch.delenv("GROQ_BASE_URL", raising=False)
+    monkeypatch.delenv("OPENCODE_BASE_URL", raising=False)
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_test")
+    assert _get_base_url() == "https://api.groq.com/openai/v1"
+
+
+def test_get_default_model_groq(monkeypatch):
+    monkeypatch.delenv("LLM_MODEL_NAME", raising=False)
+    assert _get_default_model("https://api.groq.com/openai/v1") == "openai/gpt-oss-120b"
+    assert _get_default_model("https://opencode.ai/zen/v1") == "deepseek-v4-flash-free"
+
+
+def test_classify_rotates_to_next_key_on_bad_request_error(monkeypatch):
+    """BadRequestError (e.g. model unavailable on key 1) rotates to key 2."""
+    first = _client_that_fails_with(BadRequestError)
+    second = MagicMock()
+    payload = _mock_result_payload()
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock(message=MagicMock(content="{}"))]
+    second.chat.completions.create.return_value = mock_response
+
+    keys = ["bad-key", "good-key"]
+    calls = {"n": 0}
+
+    def fake_build_client(api_key):
+        calls["n"] += 1
+        return first if api_key == "bad-key" else second
+
+    parsed = {"raw_text": "ERROR sample", "extracted_error_line": "ERROR sample"}
+    with (
+        patch("src.classifier._get_api_keys", return_value=keys),
+        patch("src.classifier._build_client", side_effect=fake_build_client),
+        patch("src.classifier._parse_llm_json", return_value=payload),
+        patch("src.classifier._apply_confidence_rule", side_effect=lambda r: r),
+    ):
+        result = classify_log(parsed)
+
+    assert result == payload
+    assert calls["n"] == 2
+
