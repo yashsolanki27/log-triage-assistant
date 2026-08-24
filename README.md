@@ -1,13 +1,13 @@
 # LogPulse
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Railway%20Production-3b82f6?style=for-the-badge&logo=railway)](https://elegant-charisma-production-127c.up.railway.app)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Railway%20Production-3b82f6?style=for-the-badge&logo=railway)](https://log-pulse.up.railway.app)
 [![Tests](https://img.shields.io/badge/Tests-97%20Passed-brightgreen?style=for-the-badge&logo=pytest)](https://github.com/yashsolanki27/log-triage-assistant)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
 [![Groq](https://img.shields.io/badge/Inference-Groq%20Llama%203.3%20%2F%20GPT--OSS-orange?style=for-the-badge)](https://groq.com)
 
 An AI-powered OSS/BSS log triage & root cause analysis platform designed for telecom application support engineers. Paste raw logs from order provisioning, network nodes, and API gateways to receive instant classification, confidence scores, root cause explanations, and 1-click Jira/ServiceNow ticket exports.
 
-🔗 **Live Production URL:** [https://elegant-charisma-production-127c.up.railway.app](https://elegant-charisma-production-127c.up.railway.app)
+🔗 **Live Production URL:** [https://log-pulse.up.railway.app](https://log-pulse.up.railway.app)
 
 ---
 
