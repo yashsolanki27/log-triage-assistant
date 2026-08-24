@@ -163,9 +163,7 @@ java.lang.NullPointerException: Cannot invoke method getStatus() on null object
     });
 
     document.getElementById("btn-sample").addEventListener("click", () => {
-      textarea.value = SAMPLE_LOG;
-      textarea.dispatchEvent(new Event("input"));
-      textarea.focus();
+      loadRandomSample();
     });
 
     document.getElementById("btn-browse-samples").addEventListener("click", () => {
@@ -563,6 +561,41 @@ java.lang.NullPointerException: Cannot invoke method getStatus() on null object
     }
     if (panel) panel.hidden = true;
     if (textarea) textarea.focus();
+  }
+
+  let lastRandomSampleIndex = -1;
+
+  async function loadRandomSample() {
+    const textarea = document.getElementById("log-input");
+    const charCount = document.getElementById("char-count");
+    if (!textarea) return;
+
+    try {
+      if (!allSampleLogs.length) {
+        allSampleLogs = await apiGet("/sample-logs");
+      }
+      if (allSampleLogs && allSampleLogs.length > 0) {
+        let nextIndex;
+        if (allSampleLogs.length > 1) {
+          do {
+            nextIndex = Math.floor(Math.random() * allSampleLogs.length);
+          } while (nextIndex === lastRandomSampleIndex);
+        } else {
+          nextIndex = 0;
+        }
+        lastRandomSampleIndex = nextIndex;
+        const picked = allSampleLogs[nextIndex];
+        textarea.value = picked.log_text;
+      } else {
+        textarea.value = SAMPLE_LOG;
+      }
+    } catch {
+      textarea.value = SAMPLE_LOG;
+    }
+
+    textarea.dispatchEvent(new Event("input"));
+    if (charCount) charCount.textContent = `${textarea.value.length} characters`;
+    textarea.focus();
   }
 
   // ---------------------------------------------------------------------
