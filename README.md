@@ -226,6 +226,15 @@ streamlit run streamlit_app.py --server.port 8501
 
 Open **http://localhost:8501**
 
+### Deploy to Render (free, no card)
+
+The repo ships with `render.yaml`:
+
+1. Render Dashboard → New → Blueprint → select the repo.
+2. Set env var `GROQ_API_KEY` when prompted, then Apply.
+3. Free-plan notes: sleeps after 15 min idle (~1 min cold start);
+   SQLite history is ephemeral and resets on sleep/redeploy.
+
 ### Deploy to Railway
 
 The repo ships with `Procfile` and `railway.json`:

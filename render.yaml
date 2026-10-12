@@ -1,0 +1,20 @@
+# Render blueprint — LogPulse on the Free plan ($0, no card required).
+# Dashboard: New > Blueprint > select this repo > set GROQ_API_KEY > Apply.
+# Free-plan notes: sleeps after 15 min idle (~1 min cold start); filesystem
+# is ephemeral, so SQLite triage history resets on sleep/redeploy (no disks
+# on Free). LLM inference (Groq) is unaffected.
+
+services:
+  - type: web
+    name: logpulse
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.api:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: LLM_TIMEOUT
+        value: "30.0"

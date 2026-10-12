@@ -7,7 +7,7 @@
 - Storage: SQLite via stdlib sqlite3 — data/triage.db by default, overridable with `TRIAGE_DB_PATH`
 - Sample data: data/sample_logs.py (single source of truth; served via /sample-logs)
 - Testing: pytest (live LLM tests excluded by default via `-m "not live"`)
-- Hosting: Railway (railway.json + Procfile), health check at /health
+- Hosting: Railway (railway.json + Procfile) or Render Free (render.yaml blueprint), health check at /health. Render Free sleeps after 15 min idle and its filesystem is ephemeral, so SQLite history resets on sleep/redeploy.
 
 ## Input assumptions
 
