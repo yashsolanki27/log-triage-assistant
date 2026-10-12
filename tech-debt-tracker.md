@@ -9,7 +9,7 @@ as reopened below).
 
 ## src/parser.py
 
-1. **Silent fallback (patterns.md violation)** — `_extract_error_line` Priority 4 returns the first non-empty line with no indicator that it's a fallback, so callers cannot distinguish a confident extraction from a guess (src/parser.py). Debt not bug: output is still a usable line; the problem is the "no silent fallback" rule from docs/patterns.md is unenforced. Suggested fix: return an `is_fallback` flag alongside the line (the 3bf400b fix added it, but the v2.0 rewrite dropped it — reopened).
+1. ~~**Silent fallback (patterns.md violation)**~~ — CLOSED: `_extract_error_line` now returns `(line, is_fallback)` and `parse_log` exposes `is_fallback` (True only for Priority 4 fallback), so callers can distinguish a confident extraction from a guess (src/parser.py). Regression fence: `test_parse_returns_is_fallback_*` in tests/test_parser.py.
 
 2. ~~**No handling of binary/garbled input**~~ — CLOSED: `parse_log` now rejects NUL bytes (`\x00`) with a `ValueError` (422 at the API), and the UTF-8 encoding assumption is documented in `parse_log`'s docstring and docs/tech-stack.md ("Input assumptions"). Regression tests `test_nul_bytes_raises` and `test_nul_bytes_only_raises` restored as a fence.
 
@@ -29,7 +29,7 @@ as reopened below).
 
 6. ~~**`base_url` points to `opencode.ai/zen/v1`**~~ — CLOSED: now configurable via `OPENCODE_BASE_URL` env var and documented in docs/tech-stack.md. Not debt.
 
-7. **No request timeout or rate limiting** — `/triage` calls the external LLM with no explicit timeout, so a slow or hung LLM call blocks the FastAPI worker indefinitely; no rate limiting means a burst of requests can exhaust the LLM quota (src/classifier.py, src/api.py). Debt not bug: robustness/ops hardening, not a correctness defect. Suggested fix: pass `timeout=` to `chat.completions.create` and add per-client rate limiting.
+7. ~~**No request timeout or rate limiting**~~ — CLOSED: the LLM client is built with `timeout=` from `LLM_TIMEOUT` (src/classifier.py `_build_client`), and `POST /triage` is capped at 10 requests/minute per client IP via slowapi (src/api.py `limiter`, dependency in requirements.txt). Bursts return HTTP 429 instead of exhausting the LLM quota. Regression fence: `test_triage_rate_limit_infrastructure` in tests/test_api.py.
 
 8. ~~**`TriageResult.unclassified_reason` typed `str | None` with no conditional constraint**~~ — CLOSED: re-added the `model_validator` on `TriageResult` (src/api.py) dropped by the v2.0 rewrite — `unclassified` requires a non-empty reason, every other category requires `None`. Regression tests `test_triage_result_unclassified_requires_non_empty_reason`, `test_triage_result_unclassified_with_reason_ok`, `test_triage_result_non_unclassified_must_have_none_reason`, `test_triage_result_non_unclassified_with_none_reason_ok`, `test_triage_api_unclassified_with_reason_ok`, and `test_triage_api_rejects_unclassified_without_reason` restored as a fence. Contract documented in docs/business-logic.md ("unclassified_reason contract") and docs/architecture.md.
 
@@ -47,4 +47,4 @@ as reopened below).
 
 10. ~~**No integration test with real LLM**~~ — CLOSED: `tests/test_live_llm.py` (10 tests, `-m live`) now exercises the real OpenAI-compatible endpoint; excluded from default CI by design. Not debt.
 
-11. **`_call_llm` uses `user` role for system-level prompt** — The classification prompt is a detailed system instruction but is sent as a `user` message; best practice is `system` role for the prompt and `user` role for the log excerpt only (src/classifier.py). Debt not bug: the model still responds correctly. Suggested fix: split messages into `system` (instructions) + `user` (log excerpt).
+11. ~~**`_call_llm` uses `user` role for system-level prompt**~~ — CLOSED: the classification call is split into `system` (taxonomy instructions from src/prompts.py `SYSTEM_PROMPT`) + `user` (log excerpt) via `build_classification_messages`, and src/classifier.py sends both messages (src/classifier.py). Regression fence: `test_build_messages_*` in tests/test_prompts.py + updated `test_pipeline_error_line_fed_to_classifier` in tests/test_integration.py.

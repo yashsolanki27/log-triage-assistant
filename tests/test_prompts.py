@@ -2,7 +2,13 @@
 
 from pathlib import Path
 
-from src.prompts import build_classification_prompt, CLASSIFICATION_PROMPT
+import pytest
+
+from src.prompts import (
+    build_classification_messages,
+    build_classification_prompt,
+    SYSTEM_PROMPT,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 BUSINESS_LOGIC_DOC = REPO_ROOT / "docs" / "business-logic.md"
@@ -89,7 +95,57 @@ def test_whitespace_only_log_raises():
 
 
 def test_template_has_log_text_placeholder():
-    assert "{log_text}" in CLASSIFICATION_PROMPT
+    """USER_PROMPT_TEMPLATE must still have the {log_text} placeholder."""
+    from src.prompts import USER_PROMPT_TEMPLATE
+    assert "{log_text}" in USER_PROMPT_TEMPLATE
+
+
+# --- build_classification_messages tests (tech-debt item #11 regression fence) ---
+
+def test_build_messages_returns_two_messages():
+    messages = build_classification_messages("ERROR test log")
+    assert len(messages) == 2
+
+
+def test_build_messages_first_is_system():
+    messages = build_classification_messages("ERROR test log")
+    assert messages[0]["role"] == "system"
+
+
+def test_build_messages_second_is_user():
+    messages = build_classification_messages("ERROR test log")
+    assert messages[1]["role"] == "user"
+
+
+def test_build_messages_system_contains_taxonomy():
+    messages = build_classification_messages("ERROR test log")
+    system_content = messages[0]["content"]
+    for cat in ["next-tache-error", "state-transition-block", "provisioning-fault",
+                "api-integration-error", "unclassified"]:
+        assert cat in system_content, f"system prompt missing taxonomy category: {cat}"
+
+
+def test_build_messages_user_contains_log_text():
+    messages = build_classification_messages("NullPointerException in OrderEngine")
+    assert "NullPointerException in OrderEngine" in messages[1]["content"]
+
+
+def test_build_messages_log_text_not_in_system():
+    """Log text must go to the user message, not into the system instructions."""
+    unique = "UNIQUE_SENTINEL_LOG_TEXT_12345"
+    messages = build_classification_messages(unique)
+    assert unique not in messages[0]["content"]
+    assert unique in messages[1]["content"]
+
+
+def test_build_messages_empty_raises():
+    with pytest.raises(ValueError, match="non-empty"):
+        build_classification_messages("")
+
+
+def test_build_messages_whitespace_raises():
+    with pytest.raises(ValueError, match="non-empty"):
+        build_classification_messages("   ")
 
 
 def test_prompt_taxonomy_has_signal_keywords_for_every_category():

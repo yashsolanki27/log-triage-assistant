@@ -135,7 +135,10 @@ def test_pipeline_error_line_fed_to_classifier():
         result = classify_log(parsed)
 
     assert result["category"] == "next-tache-error"
-    # Ensure the classifier was called with the prompt containing the extracted error line
+    # Ensure the classifier was called with the correct message structure:
+    # messages[0] = system (taxonomy instructions), messages[1] = user (log excerpt)
     call_args = mock_client.chat.completions.create.call_args
-    sent_prompt = call_args.kwargs["messages"][0]["content"]
-    assert "OrderCalculationException" in sent_prompt
+    sent_messages = call_args.kwargs["messages"]
+    assert sent_messages[0]["role"] == "system"
+    assert sent_messages[1]["role"] == "user"
+    assert "OrderCalculationException" in sent_messages[1]["content"]

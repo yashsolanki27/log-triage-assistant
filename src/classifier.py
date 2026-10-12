@@ -15,7 +15,7 @@ import re
 from dotenv import load_dotenv
 from openai import OpenAI, OpenAIError
 
-from src.prompts import build_classification_prompt
+from src.prompts import build_classification_messages
 
 load_dotenv()
 
@@ -143,7 +143,7 @@ def classify_log(parsed: dict, client: OpenAI | None = None) -> dict:
     if not parsed or not parsed.get("raw_text"):
         raise ValueError("parsed must contain non-empty raw_text")
 
-    prompt = build_classification_prompt(parsed["raw_text"])
+    messages = build_classification_messages(parsed["raw_text"])
 
     last_error = None
     while True:
@@ -154,7 +154,7 @@ def classify_log(parsed: dict, client: OpenAI | None = None) -> dict:
             kwargs = {
                 "model": model,
                 "max_tokens": 1000,
-                "messages": [{"role": "user", "content": prompt}],
+                "messages": messages,
             }
             if "groq.com" in base_url or "openai.com" in base_url:
                 kwargs["response_format"] = {"type": "json_object"}

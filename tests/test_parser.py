@@ -33,16 +33,19 @@ def test_parse_java_exception():
     assert result["raw_text"].startswith("2024-03-15 10:23:45 ERROR")
     assert "NullPointerException" in result["extracted_error_line"]
     assert result["extracted_error_line"].startswith("java.lang.NullPointerException")
+    assert result["is_fallback"] is False
 
 
 def test_parse_api_error():
     result = parse_log(LOG_API_ERROR)
     assert "SoapFaultException" in result["extracted_error_line"]
+    assert result["is_fallback"] is False
 
 
 def test_parse_provisioning_fault():
     result = parse_log(LOG_PROVISIONING)
     assert "Failed to assign BNG node" in result["extracted_error_line"]
+    assert result["is_fallback"] is False
 
 
 # --- Edge cases ---
@@ -71,6 +74,7 @@ def test_single_line_log():
     result = parse_log("ERROR something went wrong")
     assert result["extracted_error_line"] == "ERROR something went wrong"
     assert result["raw_text"] == "ERROR something went wrong"
+    assert result["is_fallback"] is False
 
 
 def test_raw_text_is_cleaned():
@@ -81,35 +85,75 @@ def test_raw_text_is_cleaned():
 def test_no_error_markers_uses_first_line():
     result = parse_log("line one\nline two\nline three")
     assert result["extracted_error_line"] == "line one"
+    assert result["is_fallback"] is True
+
+
+# --- is_fallback regression tests (tech-debt item 1) ---
+
+def test_parse_returns_is_fallback_false_for_exception():
+    """Priority 1 extraction must NOT set is_fallback."""
+    result = parse_log("NullPointerException at com.example.Foo:42")
+    assert result["is_fallback"] is False
+
+
+def test_parse_returns_is_fallback_false_for_error_marker():
+    """Priority 2 extraction must NOT set is_fallback."""
+    result = parse_log("routine startup\nERROR connection refused")
+    assert result["is_fallback"] is False
+
+
+def test_parse_returns_is_fallback_false_for_keyword():
+    """Priority 3 extraction must NOT set is_fallback."""
+    result = parse_log("node synced\nactivation failed at step 3")
+    assert result["is_fallback"] is False
+
+
+def test_parse_returns_is_fallback_true_when_no_error_line():
+    """Priority 4 fallback must set is_fallback=True."""
+    result = parse_log("INFO session started\nDEBUG cache hit\nTRACE flushed")
+    assert result["extracted_error_line"] == "INFO session started"
+    assert result["is_fallback"] is True
 
 
 # --- _extract_error_line priority tests ---
 
 def test_priority_exception_over_error_marker():
     log = "SomeException thrown\nERROR critical failure here"
-    assert _extract_error_line(log) == "SomeException thrown"
+    line, fallback = _extract_error_line(log)
+    assert line == "SomeException thrown"
+    assert fallback is False
 
 
 def test_priority_exception_over_keyword():
     log = "check the error log\nNullPointerException at line 5"
-    assert _extract_error_line(log) == "NullPointerException at line 5"
+    line, fallback = _extract_error_line(log)
+    assert line == "NullPointerException at line 5"
+    assert fallback is False
 
 
 def test_priority_fatal_marker():
     log = "routine INFO line\nFATAL connection pool exhausted"
-    assert _extract_error_line(log) == "FATAL connection pool exhausted"
+    line, fallback = _extract_error_line(log)
+    assert line == "FATAL connection pool exhausted"
+    assert fallback is False
 
 
 def test_priority_critical_marker():
     log = "routine INFO line\nCRITICAL disk write failure on /data"
-    assert _extract_error_line(log) == "CRITICAL disk write failure on /data"
+    line, fallback = _extract_error_line(log)
+    assert line == "CRITICAL disk write failure on /data"
+    assert fallback is False
 
 
 def test_priority_fatal_over_keyword():
     log = "FATAL node unreachable\ncheck the error log for details"
-    assert _extract_error_line(log) == "FATAL node unreachable"
+    line, fallback = _extract_error_line(log)
+    assert line == "FATAL node unreachable"
+    assert fallback is False
 
 
 def test_priority_exception_over_fatal():
     log = "FATAL batch aborted\ncom.order.OrderException: sequencing violated"
-    assert _extract_error_line(log) == "com.order.OrderException: sequencing violated"
+    line, fallback = _extract_error_line(log)
+    assert line == "com.order.OrderException: sequencing violated"
+    assert fallback is False

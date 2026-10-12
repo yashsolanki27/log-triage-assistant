@@ -247,3 +247,51 @@ def test_sample_logs_entries_have_valid_fields(client):
         assert entry["category"] in VALID_CATEGORIES, (
             f"Invalid category in entry: {entry['title']}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Rate limiting (tech-debt item #7 regression fence)
+# ---------------------------------------------------------------------------
+
+
+def test_triage_rate_limit_infrastructure(tmp_path, monkeypatch):
+    """Verify rate-limiting infrastructure is correctly wired on /triage.
+
+    Checks:
+    1. A RateLimitExceeded exception handler is registered on the app.
+    2. The limiter is set on app.state.
+    3. The @limiter.limit decorator is attached to the /triage route.
+    (tech-debt item #7 regression fence)
+    """
+    from src import db as db_module
+
+    monkeypatch.setattr(db_module, "DB_PATH", tmp_path / "rl_infra_test.db")
+
+    import importlib
+    import src.api as api_module
+
+    importlib.reload(api_module)
+
+    from slowapi.errors import RateLimitExceeded
+    from slowapi import Limiter
+
+    # 1. Handler registered
+    handler = api_module.app.exception_handlers.get(RateLimitExceeded)
+    assert handler is not None, "RateLimitExceeded exception handler must be registered on the app"
+
+    # 2. Limiter on app.state
+    assert hasattr(api_module.app.state, "limiter"), "app.state.limiter must be set"
+    assert isinstance(api_module.app.state.limiter, Limiter), (
+        "app.state.limiter must be a slowapi Limiter instance"
+    )
+
+    # 3. /triage has a rate-limit registered in the limiter's _route_limits dict.
+    #    slowapi stores limits keyed by "<module>.<function_name>".
+    triage_key = "src.api.triage"
+    assert triage_key in api_module.limiter._route_limits, (
+        f"/triage endpoint must have a rate limit registered (key '{triage_key}' "
+        f"not found in limiter._route_limits)"
+    )
+    # Confirm the limit string is what we set
+    registered_limits = api_module.limiter._route_limits[triage_key]
+    assert registered_limits, "triage rate-limit list must be non-empty"
