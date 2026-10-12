@@ -1,0 +1,18 @@
+name: Keep Render awake
+
+# Pings /health every 10 min so the free service never hits Render's
+# 15-min idle sleep. ~144 tiny requests/day; keeps monthly instance hours
+# (~730) inside the 750 free-hour quota. Note: this prevents sleeping, not
+# redeploy wipes — SQLite history is still ephemeral on the free plan.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping production health
+        run: curl -fsS -m 30 https://logpulse-9wql.onrender.com/health
