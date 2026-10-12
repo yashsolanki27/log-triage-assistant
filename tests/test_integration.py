@@ -1,7 +1,7 @@
 """Integration tests — full parser → classifier pipeline with mocked LLM."""
 
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from src.classifier import classify_log
 from src.parser import parse_log
@@ -93,8 +93,7 @@ def test_pipeline_end_to_end():
             payload["unclassified_reason"] = f"Confidence {confidence}% below threshold"
 
         mock_client = _mock_openai_client(payload)
-        with patch("src.classifier._client", mock_client):
-            result = classify_log(parsed)
+        result = classify_log(parsed, client=mock_client)
 
         # Assert pipeline output schema
         assert set(result.keys()) == {
@@ -131,11 +130,13 @@ def test_pipeline_error_line_fed_to_classifier():
         "unclassified_reason": None,
     }
     mock_client = _mock_openai_client(payload)
-    with patch("src.classifier._client", mock_client):
-        result = classify_log(parsed)
+    result = classify_log(parsed, client=mock_client)
 
     assert result["category"] == "next-tache-error"
-    # Ensure the classifier was called with the prompt containing the extracted error line
+    # Ensure the classifier was called with the correct message structure:
+    # messages[0] = system (taxonomy instructions), messages[1] = user (log excerpt)
     call_args = mock_client.chat.completions.create.call_args
-    sent_prompt = call_args.kwargs["messages"][0]["content"]
-    assert "OrderCalculationException" in sent_prompt
+    sent_messages = call_args.kwargs["messages"]
+    assert sent_messages[0]["role"] == "system"
+    assert sent_messages[1]["role"] == "user"
+    assert "OrderCalculationException" in sent_messages[1]["content"]

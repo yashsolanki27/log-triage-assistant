@@ -5,6 +5,9 @@ GET  /history        query: limit, offset, category -> past triage results
 GET  /triage/{id}     -> single stored triage result
 GET  /stats          -> aggregate counts for the dashboard
 
+Rate limiting: POST /triage is capped at 10 requests/minute per client IP
+(tech-debt item #7 — guards against LLM quota exhaustion from request bursts).
+
 Also serves the static frontend from /web at "/", so the whole app runs
 from a single `uvicorn src.api:app` process.
 """
@@ -13,11 +16,14 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, model_validator
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from src import db
 from src.classifier import classify_log
@@ -27,6 +33,8 @@ from src.parser import parse_log
 # works correctly under test clients that don't trigger lifespan events.
 db.init_db()
 
+limiter = Limiter(key_func=get_remote_address, default_limits=["10/minute"])
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -35,6 +43,8 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="LogPulse API", version="1.1.0", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -93,12 +103,13 @@ class TriageResult(BaseModel):
 
 
 @app.post("/triage", response_model=TriageResult)
-def triage(request: TriageRequest):
-    if not request.log_text.strip():
+@limiter.limit("10/minute")
+def triage(request: Request, body: TriageRequest):
+    if not body.log_text.strip():
         raise HTTPException(status_code=422, detail="log_text must be non-empty")
 
     try:
-        parsed = parse_log(request.log_text)
+        parsed = parse_log(body.log_text)
         result = classify_log(parsed)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
